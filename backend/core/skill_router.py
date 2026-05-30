@@ -94,6 +94,11 @@ class SkillRouter:
                     risk_level=risk.risk_level,
                     reason=risk.reason,
                     payload={"instruction": instruction, "context": {"step": current_context.get("step")}},
+                    task_id=current_context.get("task_id"),
+                    step_id=str(current_context.get("step", {}).get("step", "")),
+                    skill=skill_name,
+                    instruction=instruction,
+                    context={"step": current_context.get("step")},
                 ))
                 results.append({
                     "skill": skill_name,

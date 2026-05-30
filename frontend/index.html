@@ -69,6 +69,14 @@
                         <span class="btn-icon">▶</span> 生成 Contract 并执行
                     </button>
                 </div>
+                <section id="clarificationPanel" class="preflight-panel hidden">
+                    <h3>🎯 目标确认</h3>
+                    <p id="clarificationSummary" class="placeholder"></p>
+                    <div id="clarificationQuestions"></div>
+                    <button id="submitClarificationBtn" class="btn-execute" onclick="submitClarificationAnswers()">提交回答并生成目标契约</button>
+                    <button id="skipClarificationBtn" class="btn-secondary" onclick="skipClarification()">跳过，让 AI 自主决定</button>
+                </section>
+
                 <div id="preflightPanel" class="preflight-panel">
                     <h3>🛫 全自主授权 Preflight</h3>
                     <div class="preflight-grid">

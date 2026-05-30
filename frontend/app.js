@@ -41,7 +41,10 @@ const els = {
     userPreferences: document.getElementById('userPreferences'),
     protectedPaths: document.getElementById('protectedPaths'),
     capabilityGrid: document.getElementById('capabilityGrid'),
-    preflightPanel: document.getElementById('preflightPanel')
+    preflightPanel: document.getElementById('preflightPanel'),
+    clarificationPanel: document.getElementById('clarificationPanel'),
+    clarificationSummary: document.getElementById('clarificationSummary'),
+    clarificationQuestions: document.getElementById('clarificationQuestions')
 };
 
 async function init() {
@@ -128,12 +131,7 @@ async function executeTask() {
         let goalContract = preparedGoal.goal_contract || preparedGoal;
         if (preparedGoal.needs_clarification) {
             const session = preparedGoal.clarification_session;
-            const answers = collectClarificationAnswers(session);
-            const confirmRes = await fetch(`${API_BASE}/api/task/confirm-goal`, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ clarification_session_id: session.id, answers })
-            });
-            goalContract = await confirmRes.json();
+            goalContract = await showClarificationPanel(session, input);
         }
         handleEvent({type: 'goal_contract', data: {goal_contract: goalContract}, timestamp: new Date().toISOString()});
         renderGoalContract(goalContract);
@@ -173,6 +171,46 @@ async function executeTask() {
     } finally {
         finishUi();
     }
+}
+
+let pendingClarificationResolve = null;
+let pendingClarificationSession = null;
+let pendingOriginalInput = '';
+
+function showClarificationPanel(session, originalInput) {
+    pendingClarificationSession = session;
+    pendingOriginalInput = originalInput;
+    els.clarificationPanel.classList.remove('hidden');
+    els.clarificationSummary.textContent = '请回答以下问题，系统将据此生成 Goal Contract。';
+    els.clarificationQuestions.innerHTML = (session.questions || []).map(q => `
+        <div class="clarification-card">
+            <label>${escapeHtml(q.question)}</label>
+            <textarea data-question-id="${q.id}" rows="2" placeholder="你的回答"></textarea>
+            <small>${escapeHtml(q.reason || '')}</small>
+        </div>`).join('');
+    return new Promise(resolve => { pendingClarificationResolve = resolve; });
+}
+
+async function submitClarificationAnswers() {
+    const answers = Array.from(els.clarificationQuestions.querySelectorAll('textarea')).map(t => ({ question_id: t.dataset.questionId, answer: t.value }));
+    answers.forEach(a => addEvidence('clarification_answer', a.answer || '(empty)', true));
+    const res = await fetch(`${API_BASE}/api/task/confirm-goal`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ clarification_session_id: pendingClarificationSession.id, answers })
+    });
+    const contract = await res.json();
+    els.clarificationPanel.classList.add('hidden');
+    pendingClarificationResolve(contract);
+}
+
+async function skipClarification() {
+    els.clarificationPanel.classList.add('hidden');
+    const res = await fetch(`${API_BASE}/api/task/prepare-goal`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ user_input: pendingOriginalInput, goal_mode: 'autonomous' })
+    });
+    const prepared = await res.json();
+    pendingClarificationResolve(prepared.goal_contract || prepared);
 }
 
 function collectClarificationAnswers(session) {

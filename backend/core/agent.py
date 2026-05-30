@@ -27,6 +27,7 @@ from backend.local_model.evidence_retriever import EvidenceRetriever
 from backend.local_model.tool_result_summarizer import ToolResultSummarizer
 from backend.local_model.step_state import StepStateManager
 from backend.local_model.external_ai_escalation import ExternalAIEscalationRouter
+from backend.local_model.step_state_store import StepStateStore
 
 
 def create_llm_provider() -> LLMProvider:
@@ -82,6 +83,7 @@ class Agent:
         self.tool_summarizer = ToolResultSummarizer()
         self.step_state_manager = StepStateManager()
         self.escalation_router = ExternalAIEscalationRouter()
+        self.step_state_store = StepStateStore()
 
     async def run(self, user_input: str) -> AsyncGenerator[AgentEvent, None]:
         """
@@ -260,8 +262,16 @@ class Agent:
         self.evidence_board.save(task_id, None, "goal_contract", "contract", json.dumps(goal_contract, ensure_ascii=False), "Goal Contract for task")
         self.evidence_board.save(task_id, None, "authorization_contract", "contract", json.dumps(authorization_contract, ensure_ascii=False), "Authorization Contract for task")
 
-        yield AgentEvent("phase", {"phase": "planning", "message": "📋 基于 Goal Contract 制定执行计划..."})
-        plan = await self.planner.create_plan(goal, {"authorization_contract": authorization_contract})
+        yield AgentEvent("phase", {"phase": "planning", "message": "📋 基于压缩上下文制定执行计划..."})
+        initial_context = self.context_manager.build_context(
+            goal_contract=goal_contract,
+            authorization_contract=authorization_contract,
+            current_step={"goal": goal_contract.get("final_goal", "initial planning")},
+            state_summary="initial planning",
+            relevant_evidence=self.evidence_board.get_task_evidence(task_id),
+            available_skills=[{"name": k, "capabilities": v.capabilities} for k, v in self.skill_router.get_all_skills().items()],
+        )
+        plan = await self.planner.create_plan_from_optimized_context(initial_context)
         yield AgentEvent("plan", {"plan": plan})
         steps = plan.get("plan", [])
         if not steps:
@@ -273,6 +283,7 @@ class Agent:
         while current_step_index < len(steps):
             loop_count += 1
             step = steps[current_step_index]
+            self.step_state_store.save(self.step_state_manager.get(task_id))
             step_id = f"step_{current_step_index + 1}"
             yield AgentEvent("step_start", {"step": current_step_index + 1, "total": len(steps), "goal": step.get("goal", ""), "skills": step.get("needed_skills", [])})
             state = self.observer.collect(task_id=task_id, recent_results=all_results[-3:], evidence_summary=self.evidence_board.get_summary(task_id))
@@ -316,16 +327,30 @@ class Agent:
             if step_success:
                 consecutive_failures = 0
                 self.step_state_manager.mark_completed(task_id, step, {"results": chain_results})
+                self.step_state_store.save(self.step_state_manager.get(task_id))
                 current_step_index += 1
             else:
                 consecutive_failures += 1
                 self.step_state_manager.mark_failed(task_id, step, next((r.get("error") for r in chain_results if r.get("error")), "Unknown"))
+                self.step_state_store.save(self.step_state_manager.get(task_id))
                 failure_info = {"step": step, "results": chain_results, "goal_contract": goal_contract, "authorization_contract": authorization_contract, "error": next((r.get("error") for r in chain_results if r.get("error")), "Unknown")}
                 repair = await self.failure_handler.diagnose(failure_info, state)
                 step_state_now = self.step_state_manager.get(task_id)
                 if self.escalation_router.should_escalate(repair.get("failure_type", ""), {"retry_count": step_state_now.retry_count}):
                     target = self.escalation_router.choose_target(repair.get("failure_type", ""), authorization_contract.get("available_external_ai", []))
                     repair["escalation"] = {"needed": True, "target": target, "reason": repair.get("failure_type")}
+                    escalation_prompt = self._build_escalation_prompt(goal_contract, authorization_contract, step, failure_info, relevant_evidence)
+                    escalation_skill = "web_ai" if "operate_browser" in authorization_contract.get("granted_capabilities", []) else "external_ai"
+                    escalation_result = await self.skill_router.execute_chain([escalation_skill], escalation_prompt, {"task_id": task_id, "step": step, "goal_contract": goal_contract, "authorization_contract": authorization_contract, "target": target, "provider": (target or "").lower(), "reason": repair.get("failure_type")})
+                    for er in escalation_result:
+                        evidence_entries = self.evidence_board.save_from_result(task_id, step_id, er)
+                        all_evidence.extend(evidence_entries)
+                        all_results.append(self.tool_summarizer.summarize(er.get("skill", escalation_skill), er))
+                    repair["external_ai_result"] = escalation_result
+                repair_steps = self.planner.convert_repair_actions_to_steps(repair.get("repair_actions") or repair.get("repair_plan", {}).get("repair_actions", []))
+                if repair_steps:
+                    steps[current_step_index + 1: current_step_index + 1] = repair_steps
+                    yield AgentEvent("plan_updated", {"inserted_steps": repair_steps})
                 yield AgentEvent("failure_repair", {"repair": repair})
                 if not (authorization_contract.get("execution_policy", {}).get("autonomous_retry") and repair.get("should_retry")):
                     current_step_index += 1
@@ -339,6 +364,15 @@ class Agent:
         report = await self.reporter.generate_with_contracts(goal_contract, authorization_contract, steps=[{"index": i, **r} for i, r in enumerate(all_results)], evidence=all_evidence)
         yield AgentEvent("report", {"report": report})
         yield AgentEvent("complete", {"task_id": task_id, "verified": verification.get("verified", False), "total_steps": len(all_results), "success_rate": sum(1 for r in all_results if r.get("success")) / max(len(all_results), 1)})
+
+    def _build_escalation_prompt(self, goal_contract: dict, authorization_contract: dict, step: dict, failure_info: dict, evidence: list[dict]) -> str:
+        return f"""你是外部专家 AI。请帮助 local-ai-orchestrator 修复当前失败。
+Goal Contract: {json.dumps(goal_contract, ensure_ascii=False)}
+Authorization Contract: {json.dumps(authorization_contract, ensure_ascii=False)}
+当前步骤: {json.dumps(step, ensure_ascii=False)}
+失败信息: {json.dumps(failure_info, ensure_ascii=False)}
+相关证据: {json.dumps(evidence[:5], ensure_ascii=False)}
+请给出具体、可执行的修复步骤，不要泛泛而谈。"""
 
     async def _generate_instruction(self, goal: dict, step: dict, gap: dict) -> str:
         """Generate a specific instruction for skill execution."""
