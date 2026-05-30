@@ -93,7 +93,7 @@ class Agent:
         """
         task_id = str(uuid.uuid4())[:12]
 
-        # ── Phase 1: Understand the goal ──────────────────────────────────
+        # Phase 1: Understand the goal
         yield AgentEvent(
             "phase", {"phase": "understanding", "message": "🎯 正在理解任务目标..."}
         )
@@ -103,7 +103,7 @@ class Agent:
 
         self.task_memory.remember(task_id, "goal", json.dumps(goal, ensure_ascii=False))
 
-        # ── Phase 2: Create execution plan ────────────────────────────────
+        # Phase 2: Create execution plan
         yield AgentEvent(
             "phase", {"phase": "planning", "message": "📋 正在制定执行计划..."}
         )
@@ -116,7 +116,7 @@ class Agent:
             yield AgentEvent("error", {"message": "无法生成执行计划"})
             return
 
-        # ── Phase 3: Execute loop ─────────────────────────────────────────
+        # Phase 3: Execute loop
         all_results = []
         all_evidence = []
         loop_count = 0
@@ -138,7 +138,7 @@ class Agent:
                 },
             )
 
-            # ── 3a: Observe state and detect capability gaps ──
+            # Step 3a: observe and detect gaps
             state = self.observer.collect(
                 task_id=task_id,
                 recent_results=all_results[-3:],
@@ -153,14 +153,14 @@ class Agent:
             if gap.get("requires_help"):
                 yield AgentEvent("gap_detected", {"gap": gap})
 
-            # ── 3b: Select skill chain ──
+            # Step 3b: select skill chain
             skill_chain = self.skill_router.select(step, gap)
             yield AgentEvent("skills_selected", {"chain": skill_chain})
 
-            # ── 3c: Generate execution instruction ──
+            # Step 3c: generate instruction
             instruction = await self._generate_instruction(goal, step, gap)
 
-            # ── 3d: Execute skill chain ──
+            # Step 3d: execute skill chain
             yield AgentEvent(
                 "phase",
                 {"phase": "executing", "message": f"⚡ 执行中: {step.get('goal', '')}"},
@@ -178,7 +178,7 @@ class Agent:
                 skill_chain, instruction, context
             )
 
-            # ── 3e: Save evidence ──
+            # Step 3e: save evidence
             for r in chain_results:
                 evidence_entries = self.evidence_board.save_from_result(
                     task_id, step_id, r
@@ -229,7 +229,7 @@ class Agent:
                     # Move to next step
                     current_step_index += 1
 
-            # ── 3f: Supervisor decision ──
+            # Step 3f: supervisor decision
             task_state = {
                 "loop_count": loop_count,
                 "consecutive_failures": consecutive_failures,
@@ -248,7 +248,7 @@ class Agent:
                 )
                 break
 
-        # ── Phase 4: Verification ─────────────────────────────────────────
+        # Phase 4: Verification
         yield AgentEvent(
             "phase", {"phase": "verifying", "message": "✅ 验证执行结果..."}
         )
@@ -256,7 +256,7 @@ class Agent:
         verification = await self.verifier.check(goal, all_results, all_evidence)
         yield AgentEvent("verification", {"result": verification})
 
-        # ── Phase 5: Final Report ─────────────────────────────────────────
+        # Phase 5: Final Report
         yield AgentEvent(
             "phase", {"phase": "reporting", "message": "📝 生成最终报告..."}
         )

@@ -52,6 +52,18 @@ class FileSkill(Skill):
                 return await self._delete_file(path)
             elif action == "snapshot":
                 return await self._take_snapshot(path)
+            elif action == "targeted_replace":
+                return await self._modify_file(
+                    path,
+                    context.get("old_string", ""),
+                    context.get("new_string", ""),
+                )
+            elif action == "apply_patch":
+                return await self._apply_patch(path, context.get("patch", ""))
+            elif action == "backup_before_write":
+                return await self._take_snapshot(path)
+            elif action == "restore_backup":
+                return await self._restore_backup(path, context.get("backup_path", ""))
             else:
                 return SkillResult(
                     skill=self.name,
@@ -172,6 +184,65 @@ class FileSkill(Skill):
             skill=self.name,
             success=True,
             result=f"Deleted: {path}",
+            evidence=[path],
+        )
+
+    async def _apply_patch(self, path: str, patch: str) -> SkillResult:
+        """Minimal patch support for simple append/prepend replacements.
+
+        This intentionally avoids pretending to be a full unified-diff engine.
+        Supported formats:
+        - 'prepend:<text>'
+        - 'append:<text>'
+        """
+        p = Path(path)
+        if not p.exists():
+            return SkillResult(
+                skill=self.name,
+                success=False,
+                result="",
+                error=f"File not found: {path}",
+            )
+        await self._take_snapshot(path)
+        content = p.read_text(encoding="utf-8")
+        if patch.startswith("prepend:"):
+            content = patch[len("prepend:") :] + content
+        elif patch.startswith("append:"):
+            content = content + patch[len("append:") :]
+        else:
+            return SkillResult(
+                skill=self.name,
+                success=False,
+                result="",
+                error="Unsupported patch format",
+            )
+        p.write_text(content, encoding="utf-8")
+        return SkillResult(
+            skill=self.name,
+            success=True,
+            result=f"Patch applied to {path}",
+            evidence=[path],
+        )
+
+    async def _restore_backup(self, path: str, backup_path: str) -> SkillResult:
+        if not backup_path:
+            return SkillResult(
+                skill=self.name, success=False, result="", error="backup_path required"
+            )
+        src = Path(backup_path)
+        dst = Path(path)
+        if not src.exists():
+            return SkillResult(
+                skill=self.name,
+                success=False,
+                result="",
+                error=f"Backup not found: {backup_path}",
+            )
+        shutil.copy2(src, dst)
+        return SkillResult(
+            skill=self.name,
+            success=True,
+            result=f"Restored {path} from {backup_path}",
             evidence=[path],
         )
 

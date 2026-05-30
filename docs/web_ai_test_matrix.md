@@ -6,7 +6,7 @@ Generated from real JSON reports under:
 runtime/test_reports/web_ai/
 ```
 
-Last generated: 2026-05-31T04:45:59.965965
+Last generated: 2026-05-31T04:56:51.300538
 
 | Provider | Script | Login | Send | Wait | Extract | Follow-up | Evidence | Fallback | Status | Last Tested |
 |---|---|---:|---:|---:|---:|---:|---:|---|---|---|

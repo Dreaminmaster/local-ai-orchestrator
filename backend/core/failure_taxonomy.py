@@ -43,7 +43,12 @@ class FailureTaxonomy:
         ],
         "code_failed": [
             "traceback",
+            "nameerror",
+            "importerror",
             "syntaxerror",
+            "modulenotfounderror",
+            "referenceerror",
+            "module_not_found",
             "exception",
             "test failed",
             "build failed",

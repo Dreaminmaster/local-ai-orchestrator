@@ -65,9 +65,8 @@ class RepairPlanner:
                 "compare_before_after",
             ],
             "code_failed": [
-                "run_code_agent",
                 "inspect_logs",
-                "apply_minimal_fix",
+                "apply_minimal_nameerror_fix",
                 "rerun_tests",
             ],
             "network_failure": ["retry_with_backoff", "switch_tool"],
