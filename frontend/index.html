@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧠 Local AI Orchestrator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1>🧠 Local AI Orchestrator</h1>
+                <span class="subtitle">本地 AI 自监督总控系统</span>
+            </div>
+            <div class="header-right">
+                <div class="status-dot" id="llmStatus" title="LLM 状态"></div>
+                <span class="status-text" id="llmStatusText">未连接</span>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <div class="main-layout">
+            <!-- Left Panel: Goal & Criteria -->
+            <aside class="panel panel-left">
+                <div class="panel-section">
+                    <h3>🎯 任务目标</h3>
+                    <div id="goalDisplay" class="goal-content">
+                        <p class="placeholder">等待新任务...</p>
+                    </div>
+                </div>
+                <div class="panel-section">
+                    <h3>✅ 完成标准</h3>
+                    <ul id="criteriaList" class="criteria-list">
+                        <li class="placeholder">—</li>
+                    </ul>
+                </div>
+                <div class="panel-section">
+                    <h3>🤖 外部 AI 状态</h3>
+                    <div id="aiProfiles" class="ai-profiles"></div>
+                </div>
+                <div class="panel-section">
+                    <h3>🔧 可用技能</h3>
+                    <div id="skillsList" class="skills-grid"></div>
+                </div>
+            </aside>
+
+            <!-- Center: Execution Area -->
+            <main class="panel panel-center">
+                <!-- Task Input -->
+                <div class="task-input-area">
+                    <textarea id="taskInput" placeholder="输入你的任务，例如：帮我把这个网页做得更高级，不要低端模板感，自己检查效果。" rows="2"></textarea>
+                    <button id="executeBtn" class="btn-execute" onclick="executeTask()">
+                        <span class="btn-icon">▶</span> 执行任务
+                    </button>
+                </div>
+
+                <!-- Execution Plan -->
+                <div class="execution-plan" id="executionPlan">
+                    <h3>📋 执行计划</h3>
+                    <div id="planSteps" class="plan-steps">
+                        <p class="placeholder">提交任务后将自动生成执行计划</p>
+                    </div>
+                </div>
+
+                <!-- Live Execution Log -->
+                <div class="execution-log">
+                    <h3>📡 执行日志 <span class="log-count" id="logCount">0</span></h3>
+                    <div id="logContainer" class="log-container"></div>
+                </div>
+
+                <!-- Final Report -->
+                <div class="report-area" id="reportArea" style="display:none;">
+                    <h3>📝 最终报告</h3>
+                    <div id="reportContent" class="report-content"></div>
+                </div>
+            </main>
+
+            <!-- Right Panel: Evidence Board -->
+            <aside class="panel panel-right">
+                <div class="panel-section">
+                    <h3>📊 证据板</h3>
+                    <div id="evidenceBoard" class="evidence-list">
+                        <p class="placeholder">执行过程中将自动收集证据</p>
+                    </div>
+                </div>
+                <div class="panel-section">
+                    <h3>📈 执行统计</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-value" id="statSteps">0</span>
+                            <span class="stat-label">总步骤</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="statSuccess">0</span>
+                            <span class="stat-label">成功</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="statFailed">0</span>
+                            <span class="stat-label">失败</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="statEvidence">0</span>
+                            <span class="stat-label">证据</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="panel-section">
+                    <h3>🧠 任务记忆</h3>
+                    <div id="taskMemory" class="memory-list">
+                        <p class="placeholder">—</p>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

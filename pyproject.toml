@@ -1,0 +1,18 @@
+[project]
+name = "local-ai-orchestrator"
+version = "0.1.0"
+description = "Local AI Self-Supervised Orchestrator — 本地 AI 自监督总控系统"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [{name = "Dreaminmaster"}]
+keywords = ["ai", "agent", "orchestrator", "local-llm", "automation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
