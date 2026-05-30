@@ -65,12 +65,14 @@ class Reporter:
 
 证据：
 {json.dumps(evidence, ensure_ascii=False, indent=2)}"""
-        prompt = """请生成最终报告，必须分开说明：
-1. 目标理解部分：用户原始输入、目标理解策略、是否追问、AI 默认假设、最终目标、成功标准。
-2. 执行授权部分：执行授权策略、已授予能力、已提供资源、使用了哪些外部 AI、是否全自主执行。
-3. 执行过程：做了什么、问了谁、改了什么、运行了什么、遇到什么问题、如何自主修复。
-4. 证据：哪些证据证明完成。
-5. 未完成/不确定部分。"""
+        prompt = """请生成最终报告，必须分成以下章节：
+1. 目标理解：用户原始输入、目标理解策略、是否追问、AI 默认假设、最终目标、成功标准。
+2. 执行授权：执行授权策略、已授予能力、已提供资源、使用了哪些外部 AI、是否全自主执行。
+3. 本地模型优化过程：是否使用短上下文、JSON 修复、证据检索、工具结果摘要、StepState、外部 AI 升级。
+4. 外部 AI 求助：问了谁、为什么问、回答摘要、证据文件。
+5. 执行步骤：做了什么、改了什么、运行了什么、遇到什么问题、如何自主修复。
+6. 证据：哪些证据证明完成。
+7. 未完成项：仍不确定或待人工处理的部分。"""
         try:
             resp = await self.llm.chat([LLMMessage(role="system", content=SYSTEM_PROMPT), LLMMessage(role="user", content=prompt + "\n\n" + context)], temperature=0.3)
             return resp.content
@@ -93,6 +95,11 @@ class Reporter:
             f"- 已授予能力：{', '.join(authorization_contract.get('granted_capabilities', []))}",
             f"- 已提供资源：{json.dumps(authorization_contract.get('provided_resources', {}), ensure_ascii=False)}",
             f"- 可用外部 AI：{', '.join(authorization_contract.get('available_external_ai', []))}",
+            "## 本地模型优化过程",
+            "- 已接入 ContextWindowManager / EvidenceRetriever / ToolResultSummarizer / StepState / JSONRepairParser。",
+            "",
+            "## 外部 AI 求助",
+            "- 见证据中 external_ai / web_ai / autonomous_action 条目。",
             "",
             "## 执行过程",
         ]

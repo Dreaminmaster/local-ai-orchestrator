@@ -1,28 +1,36 @@
 # External AI Workspace
 
-The External AI Workspace treats outside AI systems as experts, not final decision makers.
+The External AI Web Workspace allows the local orchestrator to ask stronger AI systems through logged-in web sessions.
 
-## Supported Modes
+## Implemented alpha capabilities
 
-- API mode
-- CLI mode (planned)
-- Web automation mode (planned)
-- Desktop automation mode (planned)
+- Persistent Playwright profiles via `BrowserProfileManager`
+- Independent profiles:
+  - `chatgpt`
+  - `claude`
+  - `doubao`
+  - `gemini`
+  - `kimi`
+- Login detection
+- Input-box locating
+- Send prompt
+- Wait for answer stability
+- Extract latest answer
+- Multi-turn follow-up when answer is too vague
+- Save Q/A evidence to `runtime/evidence/web_ai/`
+- Screenshot evidence
+- Selector/page failure fallback to `desktop_visual`
 
-## Supported AI Profiles
+## Files
 
-- ChatGPT: general reasoning, writing, vision
-- Claude: long context, architecture, logic, code review
-- DeepSeek: code and Chinese reasoning
-- Gemini: multimodal and visual analysis
-- Kimi / Doubao / Tongyi: planned Chinese ecosystem integrations
+```text
+backend/browser/profile_manager.py
+backend/skills/external_ai_web/
+```
 
-## Workflow
+## Production hardening still needed
 
-1. Rewrite user problem into expert prompt.
-2. Select target AI by capability gap.
-3. Ask the AI.
-4. Extract actionable items.
-5. Execute locally.
-6. Verify with evidence.
-7. Ask follow-up if answer is too vague.
+- Real selector tuning against live ChatGPT / Claude / Gemini / Kimi / Doubao pages
+- Login recovery UI
+- Captcha/manual-intervention handling
+- Provider-specific answer completion signals

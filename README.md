@@ -30,29 +30,37 @@ This repository is a **runnable MVP + final product blueprint** aligned with the
 ```
 User Task
    ↓
-Goal Interpreter (目标理解器)
+Goal Strategy
+   ├── Clarify First
+   └── Autonomous Goal
    ↓
-Task Planner (任务规划器)
+Goal Contract
    ↓
-Capability Gap Detector (能力缺口检测器)
+Authorization Strategy
+   ├── Standard Authorization
+   └── Full Autonomy Authorization
    ↓
-Skill Router (技能路由器)
+Authorization Contract
    ↓
-Skill Execution Layer (技能执行层)
-   ├── Desktop Skill      — 桌面控制
-   ├── Browser Skill      — 浏览器自动化
-   ├── External AI Skill  — 外部 AI 调用
-   ├── Codex Skill        — 代码执行代理
-   ├── File Skill         — 文件操作
-   ├── Shell Skill        — 终端命令
-   ├── Search Skill       — 搜索引擎
-   ├── Visual Review Skill — 视觉评审
-   ├── Memory Skill       — 记忆管理
-   └── Self Verify Skill  — 自我校验
+Local Model Optimization Layer
+   ├── Context Window Manager
+   ├── Prompt Builder
+   ├── JSON Repair Parser
+   ├── Step State Manager
+   ├── Evidence Retriever
+   ├── Tool Result Summarizer
+   ├── External AI Escalation Router
+   ├── Prompt Profiles
+   ├── Model Capability Registry
+   └── Retry Policy
    ↓
-Observer → Evidence Board → Verifier → Failure Handler → Supervisor
+Planner / Skill Router / Verifier / Failure Handler
    ↓
-Final Report (最终报告)
+Skill Execution Layer
+   ↓
+Evidence Board
+   ↓
+Reporter
 ```
 
 ## ✨ 7 大核心能力
