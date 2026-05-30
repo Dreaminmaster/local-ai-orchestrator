@@ -7,6 +7,9 @@ dist/
 build/
 venv/
 .venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Environment
 .env
@@ -14,6 +17,7 @@ venv/
 # Storage
 storage/*.db
 evidence/
+.orchestrator_snapshots/
 *.log
 
 # IDE

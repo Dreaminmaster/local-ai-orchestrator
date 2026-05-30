@@ -18,6 +18,7 @@ from backend.core.verifier import Verifier
 from backend.core.failure_handler import FailureHandler
 from backend.core.supervisor import Supervisor
 from backend.core.reporter import Reporter
+from backend.core.observer import Observer
 from backend.evidence.board import EvidenceBoard
 from backend.memory.task_memory import TaskMemory
 from backend.memory.user_preferences import UserPreferences
@@ -68,6 +69,7 @@ class Agent:
         self.failure_handler = FailureHandler(self.llm)
         self.supervisor = Supervisor()
         self.reporter = Reporter(self.llm)
+        self.observer = Observer()
         self.evidence_board = EvidenceBoard()
         self.task_memory = TaskMemory()
         self.user_prefs = UserPreferences(db)
@@ -117,9 +119,16 @@ class Agent:
                 "skills": step.get("needed_skills", []),
             })
 
-            # ── 3a: Detect capability gaps ──
+            # ── 3a: Observe state and detect capability gaps ──
+            state = self.observer.collect(
+                task_id=task_id,
+                recent_results=all_results[-3:],
+                evidence_summary=self.evidence_board.get_summary(task_id),
+            )
+            yield AgentEvent("observer_state", {"state": state})
+
             yield AgentEvent("phase", {"phase": "gap_detection", "message": "🔍 检测能力缺口..."})
-            gap = await self.gap_detector.detect(step, {"results": all_results[-3:]})
+            gap = await self.gap_detector.detect(step, state)
             if gap.get("requires_help"):
                 yield AgentEvent("gap_detected", {"gap": gap})
 

@@ -4,7 +4,13 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
+## ✅ Final-version blueprint status
+
+This repository is a **runnable MVP + final product blueprint** aligned with the complete product design document.
+
+- Runnable now: FastAPI backend, Web workbench, local LLM connector, core agent loop, built-in Skills, Evidence Board, verifier, failure handler, reporter.
+- Final blueprint included: architecture docs, security policy, Skill SDK, external AI workspace design, desktop app roadmap, coverage checklist.
+- See: [`docs/coverage_checklist.md`](docs/coverage_checklist.md), [`docs/final_blueprint.md`](docs/final_blueprint.md), [`docs/architecture.md`](docs/architecture.md).
 
 ## 📋 产品定位
 
