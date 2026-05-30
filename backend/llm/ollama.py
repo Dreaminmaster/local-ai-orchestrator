@@ -1,4 +1,5 @@
 """Ollama LLM provider."""
+
 from __future__ import annotations
 import os
 import httpx
@@ -13,7 +14,9 @@ class OllamaProvider(LLMProvider):
         base_url: str | None = None,
         model: str | None = None,
     ):
-        self.base_url = (base_url or os.getenv("LLM_BASE_URL", "http://localhost:11434")).rstrip("/")
+        self.base_url = (
+            base_url or os.getenv("LLM_BASE_URL", "http://localhost:11434")
+        ).rstrip("/")
         self.model = model or os.getenv("LLM_MODEL", "llama3")
 
     async def chat(

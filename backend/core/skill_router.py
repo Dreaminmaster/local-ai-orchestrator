@@ -1,4 +1,5 @@
 """Skill Router — Select the best skill chain for a task step."""
+
 from __future__ import annotations
 from backend.skills.base import Skill
 from backend.skills.shell_skill import ShellSkill
@@ -45,7 +46,12 @@ class SkillRouter:
     def get_all_skills(self) -> dict[str, Skill]:
         return self.skills
 
-    def select(self, step: dict, gap: dict | None = None, authorization_contract: dict | None = None) -> list[str]:
+    def select(
+        self,
+        step: dict,
+        gap: dict | None = None,
+        authorization_contract: dict | None = None,
+    ) -> list[str]:
         """Select skill chain for a step, considering capability gaps and Authorization Contract."""
         needed = step.get("needed_skills", [])
 
@@ -71,7 +77,9 @@ class SkillRouter:
 
         return chain
 
-    async def execute_chain(self, chain: list[str], instruction: str, context: dict) -> list[dict]:
+    async def execute_chain(
+        self, chain: list[str], instruction: str, context: dict
+    ) -> list[dict]:
         """Execute a chain of skills sequentially."""
         results = []
         current_context = dict(context)
@@ -79,47 +87,63 @@ class SkillRouter:
         for skill_name in chain:
             skill = self.skills.get(skill_name)
             if not skill:
-                results.append({
-                    "skill": skill_name,
-                    "success": False,
-                    "error": f"Skill not found: {skill_name}",
-                })
+                results.append(
+                    {
+                        "skill": skill_name,
+                        "success": False,
+                        "error": f"Skill not found: {skill_name}",
+                    }
+                )
                 continue
 
             authorization_contract = current_context.get("authorization_contract", {})
-            risk = self.risk_classifier.classify(skill_name, instruction, current_context, authorization_contract)
+            risk = self.risk_classifier.classify(
+                skill_name, instruction, current_context, authorization_contract
+            )
             if risk.requires_confirmation:
-                req = self.confirmation_queue.add(ConfirmationRequest(
-                    action=f"skill:{skill_name}",
-                    risk_level=risk.risk_level,
-                    reason=risk.reason,
-                    payload={"instruction": instruction, "context": {"step": current_context.get("step")}},
-                    task_id=current_context.get("task_id"),
-                    step_id=str(current_context.get("step", {}).get("step", "")),
-                    skill=skill_name,
-                    instruction=instruction,
-                    context={"step": current_context.get("step")},
-                ))
-                results.append({
-                    "skill": skill_name,
-                    "success": False,
-                    "result": "",
-                    "error": "Action requires confirmation",
-                    "needs_follow_up": True,
-                    "suggested_next_action": "await_confirmation",
-                    "metadata": {"confirmation_request": req.__dict__},
-                })
+                req = self.confirmation_queue.add(
+                    ConfirmationRequest(
+                        action=f"skill:{skill_name}",
+                        risk_level=risk.risk_level,
+                        reason=risk.reason,
+                        payload={
+                            "instruction": instruction,
+                            "context": {"step": current_context.get("step")},
+                        },
+                        task_id=current_context.get("task_id"),
+                        step_id=str(current_context.get("step", {}).get("step", "")),
+                        skill=skill_name,
+                        instruction=instruction,
+                        context={"step": current_context.get("step")},
+                    )
+                )
+                results.append(
+                    {
+                        "skill": skill_name,
+                        "success": False,
+                        "result": "",
+                        "error": "Action requires confirmation",
+                        "needs_follow_up": True,
+                        "suggested_next_action": "await_confirmation",
+                        "metadata": {"confirmation_request": req.__dict__},
+                    }
+                )
                 break
             if authorization_contract.get("authorization_mode") == "full_autonomy":
-                current_context.setdefault("autonomous_actions", []).append({
-                    "skill": skill_name,
-                    "risk_level": risk.risk_level,
-                    "reason": risk.reason,
-                })
+                current_context.setdefault("autonomous_actions", []).append(
+                    {
+                        "skill": skill_name,
+                        "risk_level": risk.risk_level,
+                        "reason": risk.reason,
+                    }
+                )
 
             result = await skill.execute(instruction, current_context)
             if current_context.get("autonomous_actions"):
-                result.metadata.setdefault("autonomous_actions", list(current_context.get("autonomous_actions", [])))
+                result.metadata.setdefault(
+                    "autonomous_actions",
+                    list(current_context.get("autonomous_actions", [])),
+                )
             results.append(result.to_dict())
 
             # Pass result to next skill's context
@@ -133,7 +157,9 @@ class SkillRouter:
 
         return results
 
-    def _filter_by_authorization(self, chain: list[str], authorization_contract: dict) -> list[str]:
+    def _filter_by_authorization(
+        self, chain: list[str], authorization_contract: dict
+    ) -> list[str]:
         caps = set(authorization_contract.get("granted_capabilities", []))
         required = {
             "file": {"read_files"},

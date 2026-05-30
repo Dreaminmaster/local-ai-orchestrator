@@ -4,6 +4,7 @@ from typing import Literal
 
 GoalMode = Literal["clarify_first", "autonomous"]
 
+
 class GoalContract(BaseModel):
     goal_mode: GoalMode = "autonomous"
     original_input: str

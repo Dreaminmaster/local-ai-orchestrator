@@ -1,4 +1,5 @@
 """Risk and permission policy for agent actions."""
+
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
@@ -64,11 +65,18 @@ class PermissionPolicy:
     def assess_command(self, command: str) -> RiskAssessment:
         lower = command.lower()
         if any(p in lower for p in self.destructive_patterns):
-            return RiskAssessment(False, True, RiskLevel.CRITICAL, "Command matches destructive pattern")
+            return RiskAssessment(
+                False, True, RiskLevel.CRITICAL, "Command matches destructive pattern"
+            )
         if any(k in lower for k in ["git push", "sendmail", "curl -x post", "curl -d"]):
             return self._decision(RiskLevel.HIGH, "Command may publish or send data")
-        if any(k in lower for k in ["rm ", "mv ", "chmod", "pip install", "npm install", "apk add"]):
-            return self._decision(RiskLevel.MEDIUM, "Command modifies local environment")
+        if any(
+            k in lower
+            for k in ["rm ", "mv ", "chmod", "pip install", "npm install", "apk add"]
+        ):
+            return self._decision(
+                RiskLevel.MEDIUM, "Command modifies local environment"
+            )
         return self._decision(RiskLevel.LOW, "Read-only or low-risk command")
 
     def assess_file_action(self, action: str, path: str) -> RiskAssessment:

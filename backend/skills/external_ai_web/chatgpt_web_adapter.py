@@ -10,7 +10,9 @@ class ChatGPTWebAdapter(BaseWebAIAdapter):
     provider_name = "chatgpt"
     url = URLS["chatgpt"]
 
-    def __init__(self, page=None, profile_name: str = "chatgpt", headless: bool = False):
+    def __init__(
+        self, page=None, profile_name: str = "chatgpt", headless: bool = False
+    ):
         super().__init__(page)
         self.profile_name = profile_name
         self.headless = headless
@@ -27,7 +29,9 @@ class ChatGPTWebAdapter(BaseWebAIAdapter):
     async def is_logged_in(self) -> bool:
         return await self.login_detector.detect(self.page, self.provider_name)
 
-    async def send_prompt(self, prompt: str, attachments: list[str] | None = None) -> None:
+    async def send_prompt(
+        self, prompt: str, attachments: list[str] | None = None
+    ) -> None:
         await self.sender.send(self.page, self.provider_name, prompt, attachments)
 
     async def wait_for_answer_complete(self, timeout: int = 180) -> bool:

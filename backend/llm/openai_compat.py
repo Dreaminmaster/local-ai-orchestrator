@@ -1,4 +1,5 @@
 """OpenAI-compatible LLM provider (works with LM Studio, vLLM, llama.cpp, etc.)."""
+
 from __future__ import annotations
 import os
 import httpx
@@ -14,7 +15,9 @@ class OpenAICompatibleProvider(LLMProvider):
         api_key: str | None = None,
         model: str | None = None,
     ):
-        self.base_url = (base_url or os.getenv("LLM_BASE_URL", "http://localhost:1234/v1")).rstrip("/")
+        self.base_url = (
+            base_url or os.getenv("LLM_BASE_URL", "http://localhost:1234/v1")
+        ).rstrip("/")
         self.api_key = api_key or os.getenv("LLM_API_KEY", "lm-studio")
         self.model = model or os.getenv("LLM_MODEL", "local-model")
 
@@ -40,7 +43,9 @@ class OpenAICompatibleProvider(LLMProvider):
         }
 
         async with httpx.AsyncClient(timeout=120) as client:
-            resp = await client.post(f"{self.base_url}/chat/completions", json=payload, headers=headers)
+            resp = await client.post(
+                f"{self.base_url}/chat/completions", json=payload, headers=headers
+            )
             resp.raise_for_status()
             data = resp.json()
 

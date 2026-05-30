@@ -1,4 +1,5 @@
 """WebSocket API — Real-time task execution with streaming events."""
+
 from __future__ import annotations
 import json
 import traceback
@@ -26,7 +27,9 @@ async def execute_task(websocket: WebSocket):
             user_input = data.get("user_input", "")
 
             if not user_input:
-                await websocket.send_json({"type": "error", "data": {"message": "Empty input"}})
+                await websocket.send_json(
+                    {"type": "error", "data": {"message": "Empty input"}}
+                )
                 continue
 
             # Create agent and run
@@ -36,13 +39,15 @@ async def execute_task(websocket: WebSocket):
                 async for event in agent.run(user_input):
                     await websocket.send_text(event.to_json())
             except Exception as e:
-                await websocket.send_json({
-                    "type": "error",
-                    "data": {
-                        "message": str(e),
-                        "traceback": traceback.format_exc(),
-                    },
-                })
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "data": {
+                            "message": str(e),
+                            "traceback": traceback.format_exc(),
+                        },
+                    }
+                )
 
     except WebSocketDisconnect:
         pass
@@ -72,17 +77,31 @@ async def execute_contract_task(websocket: WebSocket):
             goal_contract = data.get("goal_contract")
             authorization_contract = data.get("authorization_contract")
             if not goal_contract or not authorization_contract:
-                await websocket.send_json({"type": "error", "data": {"message": "goal_contract and authorization_contract required"}})
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "data": {
+                            "message": "goal_contract and authorization_contract required"
+                        },
+                    }
+                )
                 continue
             agent = Agent()
             try:
-                async for event in agent.run_with_contracts(goal_contract, authorization_contract):
+                async for event in agent.run_with_contracts(
+                    goal_contract, authorization_contract
+                ):
                     await websocket.send_text(event.to_json())
             except Exception as e:
-                await websocket.send_json({
-                    "type": "error",
-                    "data": {"message": str(e), "traceback": traceback.format_exc()},
-                })
+                await websocket.send_json(
+                    {
+                        "type": "error",
+                        "data": {
+                            "message": str(e),
+                            "traceback": traceback.format_exc(),
+                        },
+                    }
+                )
     except WebSocketDisconnect:
         pass
     except Exception as e:

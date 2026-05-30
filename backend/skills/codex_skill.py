@@ -4,6 +4,7 @@ This skill is intentionally conservative. It can call an installed command such
 as `codex`, `claude`, or another code agent CLI when configured, but defaults to
 returning an actionable instruction rather than pretending the CLI exists.
 """
+
 from __future__ import annotations
 import asyncio
 import os
@@ -12,7 +13,9 @@ from .base import Skill, SkillResult, RiskLevel
 
 class CodexSkill(Skill):
     name = "codex"
-    description = "Delegate code repair or implementation to a configured code-agent CLI"
+    description = (
+        "Delegate code repair or implementation to a configured code-agent CLI"
+    )
     capabilities = ["code_fix", "code_review", "code_generation", "debugging"]
     risk_level = RiskLevel.MEDIUM
 
@@ -55,4 +58,6 @@ class CodexSkill(Skill):
                 metadata={"command": cmd, "exit_code": proc.returncode},
             )
         except Exception as exc:
-            return SkillResult(skill=self.name, success=False, result="", error=str(exc))
+            return SkillResult(
+                skill=self.name, success=False, result="", error=str(exc)
+            )

@@ -1,8 +1,8 @@
 """Reporter — Generate final task reports."""
+
 from __future__ import annotations
 import json
 from backend.llm.base import LLMProvider, LLMMessage
-
 
 SYSTEM_PROMPT = """你是一个任务报告生成器。根据任务执行过程生成完整的最终报告。
 
@@ -25,7 +25,9 @@ class Reporter:
     def __init__(self, llm: LLMProvider):
         self.llm = llm
 
-    async def generate(self, task: dict, steps: list[dict], evidence: list[dict]) -> str:
+    async def generate(
+        self, task: dict, steps: list[dict], evidence: list[dict]
+    ) -> str:
         """Generate a final report for the task."""
         context = f"""任务信息：
 {json.dumps(task, ensure_ascii=False, indent=2)}
@@ -44,16 +46,18 @@ class Reporter:
         try:
             resp = await self.llm.chat(messages, temperature=0.3)
             return resp.content
-        except Exception as e:
+        except Exception:
             # Fallback: simple report
             return self._fallback_report(task, steps, evidence)
 
-    async def generate_with_contracts(self, goal_contract: dict, authorization_contract: dict, steps: list[dict], evidence: list[dict]) -> str:
+    async def generate_with_contracts(
+        self,
+        goal_contract: dict,
+        authorization_contract: dict,
+        steps: list[dict],
+        evidence: list[dict],
+    ) -> str:
         """Generate report that separates goal understanding and authorization."""
-        task = {
-            "goal_understanding": goal_contract,
-            "execution_authorization": authorization_contract,
-        }
         context = f"""目标理解部分：
 {json.dumps(goal_contract, ensure_ascii=False, indent=2)}
 
@@ -74,12 +78,26 @@ class Reporter:
 6. 证据：哪些证据证明完成。
 7. 未完成项：仍不确定或待人工处理的部分。"""
         try:
-            resp = await self.llm.chat([LLMMessage(role="system", content=SYSTEM_PROMPT), LLMMessage(role="user", content=prompt + "\n\n" + context)], temperature=0.3)
+            resp = await self.llm.chat(
+                [
+                    LLMMessage(role="system", content=SYSTEM_PROMPT),
+                    LLMMessage(role="user", content=prompt + "\n\n" + context),
+                ],
+                temperature=0.3,
+            )
             return resp.content
         except Exception:
-            return self._fallback_contract_report(goal_contract, authorization_contract, steps, evidence)
+            return self._fallback_contract_report(
+                goal_contract, authorization_contract, steps, evidence
+            )
 
-    def _fallback_contract_report(self, goal_contract: dict, authorization_contract: dict, steps: list[dict], evidence: list[dict]) -> str:
+    def _fallback_contract_report(
+        self,
+        goal_contract: dict,
+        authorization_contract: dict,
+        steps: list[dict],
+        evidence: list[dict],
+    ) -> str:
         lines = [
             "# 任务报告",
             "",
@@ -105,41 +123,57 @@ class Reporter:
         ]
         for i, step in enumerate(steps, 1):
             status = "✅" if step.get("success") else "❌"
-            lines.append(f"{i}. {status} {step.get('skill', step.get('goal', 'step'))}: {str(step.get('result', ''))[:160]}")
+            lines.append(
+                f"{i}. {status} {step.get('skill', step.get('goal', 'step'))}: {str(step.get('result', ''))[:160]}"
+            )
         lines.extend(["", "## 证据"])
         for ev in evidence:
-            lines.append(f"- [{ev.get('type', 'unknown')}] {ev.get('supports', ev.get('content', ''))}")
+            lines.append(
+                f"- [{ev.get('type', 'unknown')}] {ev.get('supports', ev.get('content', ''))}"
+            )
         return "\n".join(lines)
 
-    def _fallback_report(self, task: dict, steps: list[dict], evidence: list[dict]) -> str:
+    def _fallback_report(
+        self, task: dict, steps: list[dict], evidence: list[dict]
+    ) -> str:
         """Generate a simple report without LLM."""
         lines = [
-            f"# 任务报告",
-            f"",
-            f"## 任务目标",
+            "# 任务报告",
+            "",
+            "## 任务目标",
             f"{task.get('goal', task.get('main_goal', 'N/A'))}",
-            f"",
-            f"## 执行步骤",
+            "",
+            "## 执行步骤",
         ]
 
         for i, step in enumerate(steps, 1):
-            status = "✅" if step.get("success", step.get("status") == "completed") else "❌"
+            status = (
+                "✅" if step.get("success", step.get("status") == "completed") else "❌"
+            )
             desc = step.get("description", step.get("goal", "N/A"))
             lines.append(f"{i}. {status} {desc}")
 
-        lines.extend([
-            f"",
-            f"## 证据",
-        ])
+        lines.extend(
+            [
+                "",
+                "## 证据",
+            ]
+        )
 
         for ev in evidence:
-            lines.append(f"- [{ev.get('type', 'unknown')}] {ev.get('supports', ev.get('content', 'N/A'))}")
+            lines.append(
+                f"- [{ev.get('type', 'unknown')}] {ev.get('supports', ev.get('content', 'N/A'))}"
+            )
 
-        success_count = sum(1 for s in steps if s.get("success", s.get("status") == "completed"))
-        lines.extend([
-            f"",
-            f"## 总结",
-            f"共执行 {len(steps)} 步，成功 {success_count} 步。",
-        ])
+        success_count = sum(
+            1 for s in steps if s.get("success", s.get("status") == "completed")
+        )
+        lines.extend(
+            [
+                "",
+                "## 总结",
+                f"共执行 {len(steps)} 步，成功 {success_count} 步。",
+            ]
+        )
 
         return "\n".join(lines)

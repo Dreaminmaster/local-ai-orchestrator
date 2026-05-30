@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+
 @dataclass
 class VisualReviewResult:
     overall_score: float = 0.0

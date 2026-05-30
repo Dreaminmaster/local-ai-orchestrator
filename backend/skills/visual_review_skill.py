@@ -1,11 +1,10 @@
 """Visual Review Skill — Evaluate UI/design quality using external vision models."""
+
 from __future__ import annotations
 import base64
-import json
 import os
 from pathlib import Path
 from .base import Skill, SkillResult, RiskLevel
-
 
 VISUAL_REVIEW_PROMPT = """请从以下角度评价这个界面截图：
 1. 是否显得高级（高级感评分 1-10）
@@ -60,7 +59,15 @@ class VisualReviewSkill(Skill):
     risk_level = RiskLevel.LOW
 
     async def can_handle(self, task: dict, state: dict) -> bool:
-        keywords = ["visual", "design", "aesthetic", "review", "screenshot", "ui", "look"]
+        keywords = [
+            "visual",
+            "design",
+            "aesthetic",
+            "review",
+            "screenshot",
+            "ui",
+            "look",
+        ]
         desc = task.get("description", "").lower()
         return any(k in desc for k in keywords)
 
@@ -79,7 +86,9 @@ class VisualReviewSkill(Skill):
                 return await self._compare(before, after, goal)
             else:
                 return SkillResult(
-                    skill=self.name, success=False, result="",
+                    skill=self.name,
+                    success=False,
+                    result="",
                     error=f"Unknown action: {action}",
                 )
         except Exception as e:
@@ -88,7 +97,9 @@ class VisualReviewSkill(Skill):
     async def _evaluate(self, image_path: str, goal: str) -> SkillResult:
         if not Path(image_path).exists():
             return SkillResult(
-                skill=self.name, success=False, result="",
+                skill=self.name,
+                success=False,
+                result="",
                 error=f"Image not found: {image_path}",
             )
 
@@ -105,12 +116,15 @@ class VisualReviewSkill(Skill):
                 result = await self._call_gemini_vision(api_key, prompt, image_path)
             else:
                 return SkillResult(
-                    skill=self.name, success=False, result="",
+                    skill=self.name,
+                    success=False,
+                    result="",
                     error="No vision-capable API key configured (OPENAI_API_KEY or GOOGLE_API_KEY)",
                 )
 
         return SkillResult(
-            skill=self.name, success=True,
+            skill=self.name,
+            success=True,
             result=result,
             evidence=[image_path],
             metadata={"goal": goal},
@@ -120,16 +134,19 @@ class VisualReviewSkill(Skill):
         for p in [before, after]:
             if not Path(p).exists():
                 return SkillResult(
-                    skill=self.name, success=False, result="",
+                    skill=self.name,
+                    success=False,
+                    result="",
                     error=f"Image not found: {p}",
                 )
 
-        prompt = COMPARISON_PROMPT.format(goal=goal)
         # For simplicity, describe both images in text
         result = f"Comparison between {before} and {after} with goal: {goal}"
 
         return SkillResult(
-            skill=self.name, success=True, result=result,
+            skill=self.name,
+            success=True,
+            result=result,
             evidence=[before, after],
             metadata={"goal": goal},
         )
@@ -138,37 +155,57 @@ class VisualReviewSkill(Skill):
         with open(path, "rb") as f:
             return base64.b64encode(f.read()).decode("utf-8")
 
-    async def _call_openai_vision(self, api_key: str, prompt: str, image_b64: str) -> str:
+    async def _call_openai_vision(
+        self, api_key: str, prompt: str, image_b64: str
+    ) -> str:
         import httpx
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
         payload = {
             "model": "gpt-4o",
-            "messages": [{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_b64}"}},
-                ],
-            }],
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{image_b64}"},
+                        },
+                    ],
+                }
+            ],
             "max_tokens": 2000,
         }
         async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
+            resp = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                json=payload,
+                headers=headers,
+            )
             resp.raise_for_status()
             data = resp.json()
         return data["choices"][0]["message"]["content"]
 
-    async def _call_gemini_vision(self, api_key: str, prompt: str, image_path: str) -> str:
+    async def _call_gemini_vision(
+        self, api_key: str, prompt: str, image_path: str
+    ) -> str:
         import httpx
+
         image_b64 = self._encode_image(image_path)
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
         payload = {
-            "contents": [{
-                "parts": [
-                    {"text": prompt},
-                    {"inline_data": {"mime_type": "image/png", "data": image_b64}},
-                ],
-            }],
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt},
+                        {"inline_data": {"mime_type": "image/png", "data": image_b64}},
+                    ],
+                }
+            ],
         }
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(url, json=payload)

@@ -1,7 +1,6 @@
 """User Preferences — Long-term user preference storage."""
+
 from __future__ import annotations
-import json
-from pathlib import Path
 
 
 class UserPreferences:
@@ -23,7 +22,9 @@ class UserPreferences:
         if key in self._cache:
             return self._cache[key]
         if self.db:
-            row = await self.db.fetch_one("SELECT value FROM user_preferences WHERE key = ?", [key])
+            row = await self.db.fetch_one(
+                "SELECT value FROM user_preferences WHERE key = ?", [key]
+            )
             if row:
                 self._cache[key] = row["value"]
                 return row["value"]

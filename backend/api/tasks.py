@@ -1,6 +1,6 @@
 """Tasks API — Create and manage tasks."""
+
 from __future__ import annotations
-import json
 import uuid
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
@@ -46,8 +46,12 @@ async def get_task(task_id: str, request: Request):
     task = await db.fetch_one("SELECT * FROM tasks WHERE id = ?", [task_id])
     if not task:
         return {"error": "Task not found"}
-    steps = await db.fetch_all("SELECT * FROM steps WHERE task_id = ? ORDER BY step_index", [task_id])
-    evidence = await db.fetch_all("SELECT * FROM evidence WHERE task_id = ? ORDER BY created_at", [task_id])
+    steps = await db.fetch_all(
+        "SELECT * FROM steps WHERE task_id = ? ORDER BY step_index", [task_id]
+    )
+    evidence = await db.fetch_all(
+        "SELECT * FROM evidence WHERE task_id = ? ORDER BY created_at", [task_id]
+    )
     return {"task": task, "steps": steps, "evidence": evidence}
 
 

@@ -1,4 +1,5 @@
 """High-level persistent browser session."""
+
 from dataclasses import dataclass
 from .profile_manager import BrowserProfileManager
 
@@ -26,7 +27,9 @@ class BrowserSession:
     async def state(self) -> BrowserSessionState:
         if not self.page:
             return BrowserSessionState(self.profile_name, "", "")
-        return BrowserSessionState(self.profile_name, self.page.url, await self.page.title())
+        return BrowserSessionState(
+            self.profile_name, self.page.url, await self.page.title()
+        )
 
     async def screenshot(self, path: str, full_page: bool = True):
         await self.page.screenshot(path=path, full_page=full_page)

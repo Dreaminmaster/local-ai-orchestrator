@@ -1,4 +1,5 @@
 """Persistent Playwright browser profiles for login-state reuse."""
+
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ class BrowserProfileManager:
     async def start(self):
         if self.playwright is None:
             from playwright.async_api import async_playwright
+
             self.playwright = await async_playwright().start()
 
     async def get_context(self, profile_name: str, headless: bool = False):

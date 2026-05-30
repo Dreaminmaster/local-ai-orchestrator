@@ -2,7 +2,9 @@ from .selectors import SELECTORS
 
 
 class PromptSender:
-    async def send(self, page, provider: str, prompt: str, attachments: list[str] | None = None):
+    async def send(
+        self, page, provider: str, prompt: str, attachments: list[str] | None = None
+    ):
         sel = SELECTORS.get(provider, SELECTORS["chatgpt"])["input"]
         locator = page.locator(sel).last
         await locator.wait_for(timeout=30000)

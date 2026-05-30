@@ -1,15 +1,15 @@
 """Skill base class — unified interface for all skills."""
+
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
 
 
 class RiskLevel(str, Enum):
-    LOW = "low"          # 读取信息、截图、搜索
-    MEDIUM = "medium"    # 填写表单、运行命令、修改本地文件
-    HIGH = "high"        # 删除文件、发送消息、提交代码
+    LOW = "low"  # 读取信息、截图、搜索
+    MEDIUM = "medium"  # 填写表单、运行命令、修改本地文件
+    HIGH = "high"  # 删除文件、发送消息、提交代码
     CRITICAL = "critical"  # 金融交易、账户安全、隐私数据外发
 
 

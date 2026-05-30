@@ -9,9 +9,21 @@ SELECTORS = {
         "send": "button[aria-label*='Send'], button:has-text('Send')",
         "messages": "div[data-testid*='message'], .font-claude-message",
     },
-    "gemini": {"input": "rich-textarea div[contenteditable='true'], textarea", "send": "button[aria-label*='Send']", "messages": ".model-response-text, message-content"},
-    "kimi": {"input": "textarea, [contenteditable='true']", "send": "button", "messages": ".markdown, .message"},
-    "doubao": {"input": "textarea, [contenteditable='true']", "send": "button", "messages": ".markdown, .message"},
+    "gemini": {
+        "input": "rich-textarea div[contenteditable='true'], textarea",
+        "send": "button[aria-label*='Send']",
+        "messages": ".model-response-text, message-content",
+    },
+    "kimi": {
+        "input": "textarea, [contenteditable='true']",
+        "send": "button",
+        "messages": ".markdown, .message",
+    },
+    "doubao": {
+        "input": "textarea, [contenteditable='true']",
+        "send": "button",
+        "messages": ".markdown, .message",
+    },
 }
 URLS = {
     "chatgpt": "https://chatgpt.com/",

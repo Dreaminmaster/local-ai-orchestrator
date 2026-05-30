@@ -1,9 +1,12 @@
 """SQLite database layer with async support."""
+
 import aiosqlite
 import os
 from pathlib import Path
 
-DB_PATH = os.getenv("DATABASE_PATH", str(Path(__file__).resolve().parent / "orchestrator.db"))
+DB_PATH = os.getenv(
+    "DATABASE_PATH", str(Path(__file__).resolve().parent / "orchestrator.db")
+)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS tasks (
@@ -118,22 +121,42 @@ class Database:
 
     async def _seed_ai_profiles(self):
         profiles = [
-            ("chatgpt", "ChatGPT", "api", "available",
-             '["综合方案","图像理解","写作","通用推理"]',
-             '["可能产生幻觉","长文可能截断"]',
-             '["通用问答","创意写作","图像分析"]'),
-            ("claude", "Claude", "api", "available",
-             '["长文分析","复杂逻辑","代码解释","方案评审"]',
-             '["视觉能力取决于版本"]',
-             '["复杂方案","技术架构","长文总结"]'),
-            ("deepseek", "DeepSeek", "api", "available",
-             '["代码能力强","推理能力强","中文优秀"]',
-             '["多模态能力有限"]',
-             '["代码生成","数学推理","中文任务"]'),
-            ("gemini", "Gemini", "api", "unknown",
-             '["视觉理解","跨模态分析","长上下文"]',
-             '["中文能力一般"]',
-             '["视觉分析","多模态任务"]'),
+            (
+                "chatgpt",
+                "ChatGPT",
+                "api",
+                "available",
+                '["综合方案","图像理解","写作","通用推理"]',
+                '["可能产生幻觉","长文可能截断"]',
+                '["通用问答","创意写作","图像分析"]',
+            ),
+            (
+                "claude",
+                "Claude",
+                "api",
+                "available",
+                '["长文分析","复杂逻辑","代码解释","方案评审"]',
+                '["视觉能力取决于版本"]',
+                '["复杂方案","技术架构","长文总结"]',
+            ),
+            (
+                "deepseek",
+                "DeepSeek",
+                "api",
+                "available",
+                '["代码能力强","推理能力强","中文优秀"]',
+                '["多模态能力有限"]',
+                '["代码生成","数学推理","中文任务"]',
+            ),
+            (
+                "gemini",
+                "Gemini",
+                "api",
+                "unknown",
+                '["视觉理解","跨模态分析","长上下文"]',
+                '["中文能力一般"]',
+                '["视觉分析","多模态任务"]',
+            ),
         ]
         for p in profiles:
             await self.conn.execute(

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Local AI Orchestrator",
+  "version": "0.1.0-alpha",
+  "identifier": "com.dreaminmaster.local-ai-orchestrator",
+  "build": {
+    "beforeDevCommand": "cd ../.. && python run.py",
+    "devUrl": "http://127.0.0.1:8422",
+    "beforeBuildCommand": "",
+    "frontendDist": "../../frontend"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Local AI Orchestrator",
+        "width": 1440,
+        "height": 1000,
+        "resizable": true
+      }
+    ]
+  },
+  "bundle": {
+    "active": false,
+    "targets": []
+  }
+}

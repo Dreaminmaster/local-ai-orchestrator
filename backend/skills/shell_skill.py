@@ -1,8 +1,8 @@
 """Shell Skill — Execute terminal commands."""
+
 from __future__ import annotations
 import asyncio
 import os
-import shlex
 from .base import Skill, SkillResult, RiskLevel
 
 
@@ -14,12 +14,26 @@ class ShellSkill(Skill):
 
     # Commands that require HIGH risk confirmation
     DANGEROUS_PATTERNS = [
-        "rm -rf", "rm -r /", "mkfs", "dd if=", "chmod 777",
-        "curl | sh", "wget | sh", "> /dev/sd",
+        "rm -rf",
+        "rm -r /",
+        "mkfs",
+        "dd if=",
+        "chmod 777",
+        "curl | sh",
+        "wget | sh",
+        "> /dev/sd",
     ]
 
     async def can_handle(self, task: dict, state: dict) -> bool:
-        keywords = ["run", "execute", "terminal", "command", "install", "build", "compile"]
+        keywords = [
+            "run",
+            "execute",
+            "terminal",
+            "command",
+            "install",
+            "build",
+            "compile",
+        ]
         desc = task.get("description", "").lower()
         return any(k in desc for k in keywords)
 

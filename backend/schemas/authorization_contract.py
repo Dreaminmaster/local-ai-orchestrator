@@ -4,6 +4,7 @@ from typing import Literal, Any
 
 AuthorizationMode = Literal["standard", "full_autonomy"]
 
+
 class ExecutionPolicy(BaseModel):
     ask_during_execution: bool = True
     autonomous_retry: bool = False
@@ -12,6 +13,7 @@ class ExecutionPolicy(BaseModel):
     autonomous_visual_review: bool = False
     autonomous_code_modification: bool = False
     allow_sensitive_upload: bool = False
+
 
 class AuthorizationContract(BaseModel):
     authorization_mode: AuthorizationMode = "standard"

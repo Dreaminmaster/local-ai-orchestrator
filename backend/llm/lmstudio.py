@@ -1,4 +1,5 @@
 """LM Studio provider (wraps OpenAI-compatible)."""
+
 from .openai_compat import OpenAICompatibleProvider
 
 

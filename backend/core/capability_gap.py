@@ -1,8 +1,8 @@
 """Capability Gap Detector — Identify when the local model needs help."""
+
 from __future__ import annotations
 import json
 from backend.llm.base import LLMProvider, LLMMessage
-
 
 SYSTEM_PROMPT = """你是一个能力缺口检测器。你的任务是判断当前步骤是否超出本地模型的能力范围。
 

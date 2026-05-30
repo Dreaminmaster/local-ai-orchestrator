@@ -1,4 +1,5 @@
 """Failure Handler — local-model protected failure diagnosis."""
+
 from __future__ import annotations
 import json
 from backend.llm.base import LLMProvider
@@ -16,6 +17,7 @@ FAILURE_SCHEMA = {
     "max_retries": 2,
 }
 
+
 class FailureHandler:
     def __init__(self, llm: LLMProvider):
         self.llm = llm
@@ -24,10 +26,21 @@ class FailureHandler:
         self.prompt_builder = ContractScopedPromptBuilder()
 
     async def diagnose(self, failure_info: dict, state: dict) -> dict:
-        error = failure_info.get("error") or json.dumps(failure_info, ensure_ascii=False)[:1000]
-        goal_contract = state.get("goal_contract") or failure_info.get("goal_contract") or {}
-        authorization_contract = state.get("authorization_contract") or failure_info.get("authorization_contract") or {}
-        fallback_plan = self.repair_planner.plan(error, goal_contract, authorization_contract)
+        error = (
+            failure_info.get("error")
+            or json.dumps(failure_info, ensure_ascii=False)[:1000]
+        )
+        goal_contract = (
+            state.get("goal_contract") or failure_info.get("goal_contract") or {}
+        )
+        authorization_contract = (
+            state.get("authorization_contract")
+            or failure_info.get("authorization_contract")
+            or {}
+        )
+        fallback_plan = self.repair_planner.plan(
+            error, goal_contract, authorization_contract
+        )
         fallback = {
             "failure_type": fallback_plan["failure_type"],
             "symptom": error,
@@ -46,9 +59,17 @@ class FailureHandler:
             "relevant_evidence": [],
             "available_skills": [],
         }
+
         def build_prompt(ctx, schema, attempt=0):
             return self.prompt_builder.build_failure_prompt(ctx, error, schema)
-        result = await self.runner.run_json(build_prompt, context, FAILURE_SCHEMA, fallback, escalation_reason="local_model_uncertain")
+
+        result = await self.runner.run_json(
+            build_prompt,
+            context,
+            FAILURE_SCHEMA,
+            fallback,
+            escalation_reason="local_model_uncertain",
+        )
         result.setdefault("failure_type", fallback_plan["failure_type"])
         result.setdefault("repair_actions", fallback_plan["repair_actions"])
         result.setdefault("repair_plan", fallback_plan)

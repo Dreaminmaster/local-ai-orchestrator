@@ -1,7 +1,7 @@
 """
 Local AI Self-Supervised Orchestrator — FastAPI Backend Entry Point
 """
-import asyncio
+
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -27,6 +27,7 @@ from backend.api.contracts import router as contracts_router
 
 db = Database()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown."""
@@ -34,6 +35,7 @@ async def lifespan(app: FastAPI):
     app.state.db = db
     yield
     await db.close()
+
 
 # ---------------------------------------------------------------------------
 # App
@@ -70,6 +72,7 @@ if frontend_dir.exists():
 # CLI entry
 # ---------------------------------------------------------------------------
 
+
 def main():
     import uvicorn
     from dotenv import load_dotenv
@@ -79,6 +82,7 @@ def main():
     port = int(os.getenv("PORT", "8422"))
     print(f"\n🧠 Local AI Orchestrator starting on http://{host}:{port}\n")
     uvicorn.run(app, host=host, port=port, log_level="info")
+
 
 if __name__ == "__main__":
     main()

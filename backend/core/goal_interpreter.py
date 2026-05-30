@@ -1,8 +1,7 @@
 """Goal Interpreter — Transform vague user input into structured goals."""
-from __future__ import annotations
-import json
-from backend.llm.base import LLMProvider, LLMMessage
 
+from __future__ import annotations
+from backend.llm.base import LLMProvider, LLMMessage
 
 SYSTEM_PROMPT = """你是一个目标理解器。你的任务是把用户模糊的输入转化为结构化的任务目标。
 

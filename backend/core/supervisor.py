@@ -1,4 +1,5 @@
 """Supervisor — Decide whether to continue, stop, or ask user."""
+
 from __future__ import annotations
 import os
 

@@ -12,9 +12,14 @@ class ScreenObservation:
 
 
 class ScreenObserver:
-    def observe(self, save_as: str = "runtime/evidence/screen.png") -> ScreenObservation:
+    def observe(
+        self, save_as: str = "runtime/evidence/screen.png"
+    ) -> ScreenObservation:
         import pyautogui
+
         Path(save_as).parent.mkdir(parents=True, exist_ok=True)
         img = pyautogui.screenshot()
         img.save(save_as)
-        return ScreenObservation(save_as, img.width, img.height, datetime.now().isoformat())
+        return ScreenObservation(
+            save_as, img.width, img.height, datetime.now().isoformat()
+        )

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Repository health check for the MVP."""
+
 from __future__ import annotations
 import importlib
 import pathlib

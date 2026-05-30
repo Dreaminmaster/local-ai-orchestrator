@@ -1,4 +1,5 @@
 """Memory Skill — Read/write task memory and user preference notes."""
+
 from __future__ import annotations
 from .base import Skill, SkillResult, RiskLevel
 
@@ -21,7 +22,17 @@ class MemorySkill(Skill):
         task_id = context.get("task_id", "default")
         if action == "recall":
             items = self.memory.get(task_id, [])
-            return SkillResult(skill=self.name, success=True, result="\n".join(items), metadata={"count": len(items)})
+            return SkillResult(
+                skill=self.name,
+                success=True,
+                result="\n".join(items),
+                metadata={"count": len(items)},
+            )
         value = context.get("value", instruction)
         self.memory.setdefault(task_id, []).append(value)
-        return SkillResult(skill=self.name, success=True, result=f"Remembered: {value}", metadata={"task_id": task_id})
+        return SkillResult(
+            skill=self.name,
+            success=True,
+            result=f"Remembered: {value}",
+            metadata={"task_id": task_id},
+        )
