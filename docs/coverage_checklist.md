@@ -9,7 +9,8 @@ This checklist maps the original product design document to repository implement
 | External AI operator | MVP | `backend/skills/external_ai_skill.py` |
 | Desktop control | MVP | `backend/skills/desktop_skill.py` |
 | Browser automation | MVP | `backend/skills/browser_skill.py` |
-| File / terminal / code tools | MVP | `file_skill.py`, `shell_skill.py` |
+| File / terminal / code tools | MVP | `file_skill.py`, `shell_skill.py`, `codex_skill.py` |
+| Memory Skill | MVP | `memory_skill.py`, `memory/` |
 | Visual review | MVP | `visual_review_skill.py` |
 | Task supervisor | Done | `core/supervisor.py` |
 | Evidence board | Done | `evidence/board.py` |

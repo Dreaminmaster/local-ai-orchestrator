@@ -9,6 +9,8 @@ from backend.skills.external_ai_skill import ExternalAISkill
 from backend.skills.search_skill import SearchSkill
 from backend.skills.visual_review_skill import VisualReviewSkill
 from backend.skills.self_verify_skill import SelfVerifySkill
+from backend.skills.codex_skill import CodexSkill
+from backend.skills.memory_skill import MemorySkill
 
 
 class SkillRouter:
@@ -23,6 +25,8 @@ class SkillRouter:
             "external_ai": ExternalAISkill(),
             "search": SearchSkill(),
             "visual_review": VisualReviewSkill(),
+            "codex": CodexSkill(),
+            "memory": MemorySkill(),
             "self_verify": SelfVerifySkill(),
         }
 
