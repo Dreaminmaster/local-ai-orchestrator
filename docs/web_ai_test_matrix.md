@@ -6,13 +6,13 @@ Test outputs should be written to:
 runtime/test_reports/web_ai/
 ```
 
-| Provider | Script | Persistent profile | Login detection | Send prompt | Wait complete | Extract answer | Follow-up | Evidence saved | Desktop fallback |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| ChatGPT | `scripts/test_web_ai_chatgpt.py` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| Claude | `scripts/test_web_ai_claude.py` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| Doubao | `scripts/test_web_ai_doubao.py` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| Gemini | `scripts/test_web_ai_gemini.py` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
-| Kimi | `scripts/test_web_ai_kimi.py` | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| Provider | Script                           | Persistent profile | Login detection | Send prompt | Wait complete | Extract answer | Follow-up | Evidence saved | Desktop fallback |
+| -------- | -------------------------------- | -----------------: | --------------: | ----------: | ------------: | -------------: | --------: | -------------: | ---------------: |
+| ChatGPT  | `scripts/test_web_ai_chatgpt.py` |                 ⬜ |              ⬜ |          ⬜ |            ⬜ |             ⬜ |        ⬜ |             ⬜ |               ⬜ |
+| Claude   | `scripts/test_web_ai_claude.py`  |                 ⬜ |              ⬜ |          ⬜ |            ⬜ |             ⬜ |        ⬜ |             ⬜ |               ⬜ |
+| Doubao   | `scripts/test_web_ai_doubao.py`  |                 ⬜ |              ⬜ |          ⬜ |            ⬜ |             ⬜ |        ⬜ |             ⬜ |               ⬜ |
+| Gemini   | `scripts/test_web_ai_gemini.py`  |                 ⬜ |              ⬜ |          ⬜ |            ⬜ |             ⬜ |        ⬜ |             ⬜ |               ⬜ |
+| Kimi     | `scripts/test_web_ai_kimi.py`    |                 ⬜ |              ⬜ |          ⬜ |            ⬜ |             ⬜ |        ⬜ |             ⬜ |               ⬜ |
 
 ## How to run
 

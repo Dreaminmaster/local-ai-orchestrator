@@ -659,27 +659,43 @@ async function loadPendingConfirmations() {
 }
 
 async function approveConfirmation(id) {
-  await fetch(`${API_BASE}/api/confirmations/${id}/approve`, {
-    method: "POST",
-  });
+  const res = await fetch(
+    `${API_BASE}/api/confirmations/${id}/approve-execute`,
+    {
+      method: "POST",
+    },
+  );
+  const data = await res.json();
   log(
-    `已批准确认动作 ${id}，请重新执行或恢复任务继续。`,
+    `已批准并原地执行 ${id}: ${(data.results || []).length} 个结果`,
     "success",
     "✅",
     new Date().toLocaleTimeString(),
   );
   await loadPendingConfirmations();
+  await loadResumableTasks();
 }
 
 async function rejectConfirmation(id) {
-  await fetch(`${API_BASE}/api/confirmations/${id}/reject`, { method: "POST" });
+  const reason =
+    window.prompt(
+      "拒绝原因（将交给 FailureHandler 重新规划）",
+      "用户拒绝此动作",
+    ) || "用户拒绝此动作";
+  const res = await fetch(`${API_BASE}/api/confirmations/${id}/reject-repair`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+  });
+  const data = await res.json();
   log(
-    `已拒绝确认动作 ${id}，后续将由 FailureHandler 重新规划。`,
+    `已拒绝 ${id}，插入 repair steps: ${(data.repair_steps_inserted || []).length}`,
     "warning",
     "❌",
     new Date().toLocaleTimeString(),
   );
   await loadPendingConfirmations();
+  await loadResumableTasks();
 }
 
 async function loadResumableTasks() {
@@ -697,7 +713,8 @@ async function loadResumableTasks() {
       .map(
         (task) => `<div class="memory-item">
           <strong>${escapeHtml(task.task_id)}</strong><br>
-          step: ${task.current_step_index} · completed: ${(task.completed_steps || []).length} · failed: ${(task.failed_steps || []).length}<br>
+          step: ${task.current_step_index}/${task.total_steps || 0} · completed: ${task.completed || 0} · failed: ${task.failed || 0}<br>
+          <span>${escapeHtml(task.final_goal || "")}</span><br>
           <button class="btn-secondary" onclick="resumeTask('${task.task_id}')">恢复执行</button>
         </div>`,
       )

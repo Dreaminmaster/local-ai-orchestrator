@@ -404,6 +404,7 @@ class Agent:
             instruction = await self._generate_instruction(goal, step, gap)
             context = {
                 "task_id": task_id,
+                "step_index": current_step_index,
                 "step": step,
                 "goal": goal,
                 "goal_contract": goal_contract,
@@ -587,6 +588,126 @@ class Agent:
             },
         )
 
+    async def resume_with_contracts(
+        self, goal_contract: dict, authorization_contract: dict, step_state
+    ) -> AsyncGenerator[AgentEvent, None]:
+        """Resume a contract task from persisted StepState.current_step_index."""
+        task_id = step_state.task_id
+        steps = step_state.plan_steps or []
+        if not steps:
+            yield AgentEvent("error", {"message": "Checkpoint has no plan_steps"})
+            return
+        yield AgentEvent(
+            "resumed",
+            {"task_id": task_id, "current_step_index": step_state.current_step_index},
+        )
+        all_results = list(step_state.last_tool_results or [])
+        all_evidence = self.evidence_board.get_task_evidence(task_id)
+        current_step_index = step_state.current_step_index
+        consecutive_failures = 0
+        while current_step_index < len(steps):
+            step = steps[current_step_index]
+            step_id = f"step_{current_step_index + 1}"
+            yield AgentEvent(
+                "step_start",
+                {
+                    "step": current_step_index + 1,
+                    "total": len(steps),
+                    "goal": step.get("goal", ""),
+                    "resumed": True,
+                },
+            )
+            state = self.observer.collect(
+                task_id=task_id,
+                recent_results=all_results[-3:],
+                evidence_summary=self.evidence_board.get_summary(task_id),
+            )
+            state["goal_contract"] = goal_contract
+            state["authorization_contract"] = authorization_contract
+            gap = await self.gap_detector.detect(step, state)
+            skill_chain = self.skill_router.select(step, gap, authorization_contract)
+            yield AgentEvent("skills_selected", {"chain": skill_chain})
+            instruction = await self._generate_instruction(
+                {"main_goal": goal_contract.get("final_goal", "")}, step, gap
+            )
+            context = {
+                "task_id": task_id,
+                "step_index": current_step_index,
+                "step": step,
+                "goal_contract": goal_contract,
+                "authorization_contract": authorization_contract,
+                "gap": gap,
+                "previous_results": all_results[-3:],
+            }
+            chain_results = await self.skill_router.execute_chain(
+                skill_chain, instruction, context
+            )
+            for r in chain_results:
+                evidence_entries = self.evidence_board.save_from_result(
+                    task_id, step_id, r
+                )
+                all_evidence.extend(evidence_entries)
+                all_results.append(
+                    self.tool_summarizer.summarize(r.get("skill", "unknown"), r)
+                )
+            step_success = any(r.get("success") for r in chain_results)
+            yield AgentEvent(
+                "step_result",
+                {
+                    "step": current_step_index + 1,
+                    "success": step_success,
+                    "results": chain_results,
+                },
+            )
+            if step_success:
+                self.step_state_manager.mark_completed(
+                    task_id, step, {"results": chain_results}
+                )
+                current_step_index += 1
+            else:
+                consecutive_failures += 1
+                self.step_state_manager.mark_failed(
+                    task_id,
+                    step,
+                    next(
+                        (r.get("error") for r in chain_results if r.get("error")),
+                        "Unknown",
+                    ),
+                )
+                if consecutive_failures >= 2:
+                    break
+            s = self.step_state_manager.get(task_id)
+            s.goal_contract = goal_contract
+            s.authorization_contract = authorization_contract
+            s.plan_steps = steps
+            s.current_step_index = current_step_index
+            s.resumed_from_checkpoint = True
+            self.step_state_store.save(s)
+        verification = await self.verifier.check_with_contracts(
+            goal_contract, authorization_contract, all_results, all_evidence
+        )
+        yield AgentEvent("verification", {"result": verification})
+        report = await self.reporter.generate_with_contracts(
+            goal_contract,
+            authorization_contract,
+            steps=[
+                {"index": i, **r}
+                for i, r in enumerate(all_results)
+                if isinstance(r, dict)
+            ],
+            evidence=all_evidence,
+            resumed_from_checkpoint=True,
+        )
+        yield AgentEvent("report", {"report": report})
+        yield AgentEvent(
+            "complete",
+            {
+                "task_id": task_id,
+                "verified": verification.get("verified", False),
+                "resumed": True,
+            },
+        )
+
     async def resume_from_step_state(
         self, task_id: str
     ) -> AsyncGenerator[AgentEvent, None]:
@@ -596,13 +717,8 @@ class Agent:
             return
         state.resumed_from_checkpoint = True
         self.step_state_manager.states[task_id] = state
-        yield AgentEvent(
-            "resumed",
-            {"task_id": task_id, "current_step_index": state.current_step_index},
-        )
-        # Resume by reusing stored contracts. Current alpha re-enters run_with_contracts; StepState marks resumed for reporting.
-        async for event in self.run_with_contracts(
-            state.goal_contract, state.authorization_contract
+        async for event in self.resume_with_contracts(
+            state.goal_contract, state.authorization_contract, state
         ):
             yield event
 

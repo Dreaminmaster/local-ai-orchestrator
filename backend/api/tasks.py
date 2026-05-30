@@ -69,7 +69,26 @@ async def list_resumable_tasks():
     from backend.local_model.step_state_store import StepStateStore
 
     store = StepStateStore()
-    return {"tasks": [state.__dict__ for state in store.list_resumable_tasks()]}
+
+    def summarize(state):
+        return {
+            "task_id": state.task_id,
+            "current_step_index": state.current_step_index,
+            "total_steps": len(state.plan_steps),
+            "completed": len(state.completed_steps),
+            "failed": len(state.failed_steps),
+            "final_goal": state.goal_contract.get("final_goal", ""),
+            "authorization_mode": state.authorization_contract.get(
+                "authorization_mode", ""
+            ),
+            "resumable": bool(
+                state.goal_contract
+                and state.authorization_contract
+                and state.plan_steps
+            ),
+        }
+
+    return {"tasks": [summarize(state) for state in store.list_resumable_tasks()]}
 
 
 @router.post("/tasks/{task_id}/resume")
@@ -80,4 +99,9 @@ async def resume_task(task_id: str):
     state = StepStateStore().load(task_id)
     if not state:
         return {"error": "No checkpoint found", "task_id": task_id}
-    return {"task_id": task_id, "step_state": state.__dict__}
+    return {
+        "task_id": task_id,
+        "step_state": state.__dict__,
+        "resume_payload": {"task_id": task_id, "resume_from_task_id": task_id},
+        "websocket": "/ws/execute-contract",
+    }

@@ -5,10 +5,10 @@ Validates: run fails -> create repair plan -> modify file -> rerun -> evidence/r
 
 from pathlib import Path
 import json
-import os
 import shutil
 import subprocess
 from datetime import datetime
+from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORT_DIR = ROOT / "runtime/test_reports/broken_project"
@@ -33,12 +33,7 @@ def repair_python(path: Path):
 
 def test_fixture(name, command, repair):
     src = ROOT / "tests/fixtures" / name
-    work = ROOT / "runtime/tmp" / name
-    if work.exists() or work.is_symlink():
-        if os.path.islink(work) or work.is_file():
-            work.unlink()
-        else:
-            shutil.rmtree(work)
+    work = ROOT / "runtime/tmp" / f"{name}_{uuid4().hex[:8]}"
     shutil.copytree(src, work)
     before = run(command, work)
     repair(work)

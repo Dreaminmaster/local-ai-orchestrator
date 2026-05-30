@@ -114,7 +114,15 @@ class SkillRouter:
                         step_id=str(current_context.get("step", {}).get("step", "")),
                         skill=skill_name,
                         instruction=instruction,
-                        context={"step": current_context.get("step")},
+                        context={
+                            "step": current_context.get("step"),
+                            "step_index": current_context.get("step_index"),
+                            "skill_chain": chain,
+                            "skill_name": skill_name,
+                            "instruction": instruction,
+                            "goal_contract": current_context.get("goal_contract", {}),
+                            "authorization_contract": authorization_contract,
+                        },
                     )
                 )
                 results.append(

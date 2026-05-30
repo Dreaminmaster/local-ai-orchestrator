@@ -4,6 +4,7 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ## ✅ Final-version blueprint status
 
 This repository is a **runnable MVP + final product blueprint** aligned with the complete product design document.
@@ -65,15 +66,15 @@ Reporter
 
 ## ✨ 7 大核心能力
 
-| 能力 | 描述 |
-|------|------|
-| 🎯 **会理解任务** | 把模糊需求转化为明确目标和完成标准 |
-| 🤔 **会判断能力不足** | 识别自身能力缺口，知道什么时候需要帮助 |
-| 🆘 **会主动求助** | 根据任务类型选择最合适的外部 AI 或工具 |
-| 💻 **会操作电脑** | 浏览器、桌面、文件、终端全方位操作 |
-| 🔄 **会处理失败** | 错误分类、诊断、修复、重试，不会一失败就停 |
-| ✅ **会自我校验** | 用证据验证每一步是否真的成功 |
-| 📝 **会输出报告** | 完整的执行报告，包含做了什么、为什么、证据 |
+| 能力                  | 描述                                       |
+| --------------------- | ------------------------------------------ |
+| 🎯 **会理解任务**     | 把模糊需求转化为明确目标和完成标准         |
+| 🤔 **会判断能力不足** | 识别自身能力缺口，知道什么时候需要帮助     |
+| 🆘 **会主动求助**     | 根据任务类型选择最合适的外部 AI 或工具     |
+| 💻 **会操作电脑**     | 浏览器、桌面、文件、终端全方位操作         |
+| 🔄 **会处理失败**     | 错误分类、诊断、修复、重试，不会一失败就停 |
+| ✅ **会自我校验**     | 用证据验证每一步是否真的成功               |
+| 📝 **会输出报告**     | 完整的执行报告，包含做了什么、为什么、证据 |
 
 ## 🚀 快速开始
 
@@ -189,6 +190,7 @@ local-ai-orchestrator/
 ## 🎮 使用场景
 
 ### 场景 1：修网页设计
+
 ```
 用户：帮我把这个网页做得更高级，不要低端模板感，自己检查效果。
 
@@ -199,6 +201,7 @@ local-ai-orchestrator/
 ```
 
 ### 场景 2：修代码项目
+
 ```
 用户：帮我把这个 GitHub 项目跑起来，报错自己解决。
 
@@ -209,6 +212,7 @@ local-ai-orchestrator/
 ```
 
 ### 场景 3：研究复杂问题
+
 ```
 用户：帮我分析有哪些项目可以实现 AI 控制电脑，给我组合方案。
 
@@ -223,11 +227,11 @@ local-ai-orchestrator/
 
 支持以下本地模型服务：
 
-| 服务 | 配置 |
-|------|------|
-| LM Studio | `LLM_PROVIDER=lmstudio`, `LLM_BASE_URL=http://localhost:1234/v1` |
-| Ollama | `LLM_PROVIDER=ollama`, `LLM_BASE_URL=http://localhost:11434` |
-| vLLM | `LLM_PROVIDER=openai_compatible`, `LLM_BASE_URL=http://localhost:8000/v1` |
+| 服务      | 配置                                                                      |
+| --------- | ------------------------------------------------------------------------- |
+| LM Studio | `LLM_PROVIDER=lmstudio`, `LLM_BASE_URL=http://localhost:1234/v1`          |
+| Ollama    | `LLM_PROVIDER=ollama`, `LLM_BASE_URL=http://localhost:11434`              |
+| vLLM      | `LLM_PROVIDER=openai_compatible`, `LLM_BASE_URL=http://localhost:8000/v1` |
 | llama.cpp | `LLM_PROVIDER=openai_compatible`, `LLM_BASE_URL=http://localhost:8080/v1` |
 
 ### 外部 AI

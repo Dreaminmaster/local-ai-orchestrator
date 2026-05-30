@@ -56,6 +56,7 @@ class Reporter:
         authorization_contract: dict,
         steps: list[dict],
         evidence: list[dict],
+        resumed_from_checkpoint: bool = False,
     ) -> str:
         """Generate report that separates goal understanding and authorization."""
         context = f"""目标理解部分：
@@ -63,6 +64,8 @@ class Reporter:
 
 执行授权部分：
 {json.dumps(authorization_contract, ensure_ascii=False, indent=2)}
+
+是否从 checkpoint 恢复：{resumed_from_checkpoint}
 
 执行过程：
 {json.dumps(steps, ensure_ascii=False, indent=2)}
@@ -89,7 +92,11 @@ class Reporter:
             return resp.content
         except Exception:
             return self._fallback_contract_report(
-                goal_contract, authorization_contract, steps, evidence
+                goal_contract,
+                authorization_contract,
+                steps,
+                evidence,
+                resumed_from_checkpoint,
             )
 
     def _fallback_contract_report(
@@ -98,6 +105,7 @@ class Reporter:
         authorization_contract: dict,
         steps: list[dict],
         evidence: list[dict],
+        resumed_from_checkpoint: bool = False,
     ) -> str:
         lines = [
             "# 任务报告",
@@ -114,6 +122,7 @@ class Reporter:
             f"- 已授予能力：{', '.join(authorization_contract.get('granted_capabilities', []))}",
             f"- 已提供资源：{json.dumps(authorization_contract.get('provided_resources', {}), ensure_ascii=False)}",
             f"- 可用外部 AI：{', '.join(authorization_contract.get('available_external_ai', []))}",
+            f"- 是否从 checkpoint 恢复：{resumed_from_checkpoint}",
             "## 本地模型优化过程",
             "- 已接入 ContextWindowManager / EvidenceRetriever / ToolResultSummarizer / StepState / JSONRepairParser。",
             "",
