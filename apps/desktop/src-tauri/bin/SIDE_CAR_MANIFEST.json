@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-05-31T04:46:00.350071",
+  "entrypoint": "run.py",
+  "target_name": "local-ai-orchestrator-backend",
+  "planned_commands": [
+    "pyinstaller --onefile run.py -n local-ai-orchestrator-backend",
+    "or use uv/standalone Python to package backend dependencies"
+  ],
+  "notes": "bundle.active remains false until sidecar binary is tested."
+}

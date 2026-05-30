@@ -672,6 +672,9 @@ async function approveConfirmation(id) {
     "✅",
     new Date().toLocaleTimeString(),
   );
+  if (data.resume_payload?.task_id) {
+    await connectContractWebSocket(null, null, data.resume_payload.task_id);
+  }
   await loadPendingConfirmations();
   await loadResumableTasks();
 }
@@ -694,6 +697,9 @@ async function rejectConfirmation(id) {
     "❌",
     new Date().toLocaleTimeString(),
   );
+  if (data.resume_payload?.task_id) {
+    await connectContractWebSocket(null, null, data.resume_payload.task_id);
+  }
   await loadPendingConfirmations();
   await loadResumableTasks();
 }

@@ -14,7 +14,7 @@ from backend.skills.codex_skill import CodexSkill
 from backend.skills.memory_skill import MemorySkill
 from backend.skills.external_ai_web.web_ai_skill import WebAISkill
 from backend.skills.desktop_visual.desktop_visual_skill import DesktopVisualSkill
-from backend.confirmation.action_risk_classifier import ActionRiskClassifier
+from backend.security.action_risk_classifier import ActionRiskClassifier
 from backend.confirmation.queue import confirmation_queue
 from backend.confirmation.schemas import ConfirmationRequest
 

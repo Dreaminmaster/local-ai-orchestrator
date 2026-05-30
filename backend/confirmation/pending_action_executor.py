@@ -83,6 +83,11 @@ class PendingActionExecutor:
             "executed": True,
             "results": results,
             "task_id": task_id,
+            "resume_payload": (
+                {"task_id": task_id, "resume_from_task_id": task_id}
+                if task_id
+                else None
+            ),
         }
 
     async def reject_and_repair(self, req_id: str, reason: str | None = None) -> dict:
@@ -157,4 +162,9 @@ class PendingActionExecutor:
             "repair_steps_inserted": repair_steps,
             "diagnosis": diagnosis,
             "task_id": task_id,
+            "resume_payload": (
+                {"task_id": task_id, "resume_from_task_id": task_id}
+                if task_id
+                else None
+            ),
         }

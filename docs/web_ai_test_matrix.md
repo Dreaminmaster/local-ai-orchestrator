@@ -1,30 +1,37 @@
 # External AI Web Test Matrix
 
-Test outputs should be written to:
+Generated from real JSON reports under:
 
 ```text
 runtime/test_reports/web_ai/
 ```
 
-| Provider | Script                           | Persistent profile | Login detection | Send prompt | Wait complete | Extract answer | Follow-up | Evidence saved | Desktop fallback |
-| -------- | -------------------------------- | -----------------: | --------------: | ----------: | ------------: | -------------: | --------: | -------------: | ---------------: |
-| ChatGPT  | `scripts/test_web_ai_chatgpt.py` |                 ⬜ |              ⬜ |          ⬜ |            ⬜ |             ⬜ |        ⬜ |             ⬜ |               ⬜ |
-| Claude   | `scripts/test_web_ai_claude.py`  |                 ⬜ |              ⬜ |          ⬜ |            ⬜ |             ⬜ |        ⬜ |             ⬜ |               ⬜ |
-| Doubao   | `scripts/test_web_ai_doubao.py`  |                 ⬜ |              ⬜ |          ⬜ |            ⬜ |             ⬜ |        ⬜ |             ⬜ |               ⬜ |
-| Gemini   | `scripts/test_web_ai_gemini.py`  |                 ⬜ |              ⬜ |          ⬜ |            ⬜ |             ⬜ |        ⬜ |             ⬜ |               ⬜ |
-| Kimi     | `scripts/test_web_ai_kimi.py`    |                 ⬜ |              ⬜ |          ⬜ |            ⬜ |             ⬜ |        ⬜ |             ⬜ |               ⬜ |
+Last generated: 2026-05-31T04:45:59.965965
 
-## How to run
+| Provider | Script | Login | Send | Wait | Extract | Follow-up | Evidence | Fallback | Status | Last Tested |
+|---|---|---:|---:|---:|---:|---:|---:|---|---|---|
+| Chatgpt | `scripts/test_web_ai_chatgpt.py` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | — | not_run | — |
+| Claude | `scripts/test_web_ai_claude.py` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | — | not_run | — |
+| Doubao | `scripts/test_web_ai_doubao.py` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | — | not_run | — |
+| Gemini | `scripts/test_web_ai_gemini.py` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | — | not_run | — |
+| Kimi | `scripts/test_web_ai_kimi.py` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | — | not_run | — |
 
-1. Start the project environment.
-2. Ensure Playwright browsers are installed.
-3. Run each provider once with `headless=False` and log in manually.
-4. Re-run the test and confirm profile reuse.
+## Report schema
 
-Example:
+Each provider test writes:
 
-```bash
-PYTHONPATH=. python scripts/test_web_ai_chatgpt.py
+```json
+{
+  "provider": "chatgpt",
+  "success": false,
+  "login_detection": true,
+  "send_prompt": true,
+  "wait_complete": false,
+  "extract_answer": false,
+  "follow_up": false,
+  "evidence_saved": true,
+  "fallback_result": "desktop_visual",
+  "raw": {},
+  "created_at": "..."
+}
 ```
-
-Each script should save a JSON test report under `runtime/test_reports/web_ai/`.
