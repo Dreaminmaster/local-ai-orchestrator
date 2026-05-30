@@ -4,6 +4,11 @@ class RepairPlanner:
     def plan(self, failure_text: str, goal_contract: dict | None=None, authorization_contract: dict | None=None) -> dict:
         kind=self.taxonomy.classify(failure_text)
         actions={
+            'json_parse_failed':['retry_short_prompt','use_json_repair','escalate_to_external_ai'],
+            'local_model_uncertain':['reduce_context','ask_external_ai','request_clarification_if_goal_related'],
+            'context_overflow':['shrink_context','retrieve_relevant_evidence_only','summarize_tool_results'],
+            'tool_result_too_long':['summarize_tool_result','keep_errors_only','retry_with_summary'],
+            'external_ai_needed':['choose_external_ai','ask_external_ai','save_answer_as_evidence'],
             'goal_unclear':['create_clarification_session','update_goal_contract'],
             'authorization_missing':['request_capability','create_confirmation_request','update_authorization_contract'],
             'resource_missing':['ask_for_resource','search_alternative_path','stop_if_required_resource_missing'],

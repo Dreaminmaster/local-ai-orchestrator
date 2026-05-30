@@ -22,6 +22,11 @@ from backend.core.observer import Observer
 from backend.evidence.board import EvidenceBoard
 from backend.memory.task_memory import TaskMemory
 from backend.memory.user_preferences import UserPreferences
+from backend.local_model.context_manager import ContextWindowManager
+from backend.local_model.evidence_retriever import EvidenceRetriever
+from backend.local_model.tool_result_summarizer import ToolResultSummarizer
+from backend.local_model.step_state import StepStateManager
+from backend.local_model.external_ai_escalation import ExternalAIEscalationRouter
 
 
 def create_llm_provider() -> LLMProvider:
@@ -73,6 +78,10 @@ class Agent:
         self.evidence_board = EvidenceBoard()
         self.task_memory = TaskMemory()
         self.user_prefs = UserPreferences(db)
+        self.context_manager = ContextWindowManager()
+        self.tool_summarizer = ToolResultSummarizer()
+        self.step_state_manager = StepStateManager()
+        self.escalation_router = ExternalAIEscalationRouter()
 
     async def run(self, user_input: str) -> AsyncGenerator[AgentEvent, None]:
         """
@@ -269,6 +278,19 @@ class Agent:
             state = self.observer.collect(task_id=task_id, recent_results=all_results[-3:], evidence_summary=self.evidence_board.get_summary(task_id))
             state["goal_contract"] = goal_contract
             state["authorization_contract"] = authorization_contract
+            step_state = self.step_state_manager.get(task_id)
+            retriever = EvidenceRetriever(self.evidence_board)
+            relevant_evidence = retriever.retrieve_for_step(task_id, step)
+            optimized_context = self.context_manager.build_context(
+                goal_contract=goal_contract,
+                authorization_contract=authorization_contract,
+                current_step=step,
+                state_summary=json.dumps({"observer": state, "step_state": step_state.__dict__}, ensure_ascii=False),
+                relevant_evidence=relevant_evidence,
+                available_skills=[{"name": k, "capabilities": v.capabilities} for k, v in self.skill_router.get_all_skills().items()],
+            )
+            state["optimized_context"] = optimized_context
+            yield AgentEvent("optimized_context", {"context": optimized_context})
             yield AgentEvent("observer_state", {"state": state})
             gap = await self.gap_detector.detect(step, state)
             if gap.get("requires_help"):
@@ -285,17 +307,25 @@ class Agent:
                     ev = self.evidence_board.save(task_id, step_id, "autonomous_action", "skill_router", json.dumps(r.get("metadata", {}).get("autonomous_actions"), ensure_ascii=False), "Full autonomy action executed within granted capabilities")
                     all_evidence.append(ev)
                 evidence_entries = self.evidence_board.save_from_result(task_id, step_id, r)
+                summarized = self.tool_summarizer.summarize(r.get("skill", "unknown"), r)
+                r["summary"] = summarized
                 all_evidence.extend(evidence_entries)
-                all_results.append(r)
+                all_results.append(summarized)
             step_success = any(r.get("success") for r in chain_results)
             yield AgentEvent("step_result", {"step": current_step_index + 1, "success": step_success, "results": chain_results})
             if step_success:
                 consecutive_failures = 0
+                self.step_state_manager.mark_completed(task_id, step, {"results": chain_results})
                 current_step_index += 1
             else:
                 consecutive_failures += 1
+                self.step_state_manager.mark_failed(task_id, step, next((r.get("error") for r in chain_results if r.get("error")), "Unknown"))
                 failure_info = {"step": step, "results": chain_results, "goal_contract": goal_contract, "authorization_contract": authorization_contract, "error": next((r.get("error") for r in chain_results if r.get("error")), "Unknown")}
                 repair = await self.failure_handler.diagnose(failure_info, state)
+                step_state_now = self.step_state_manager.get(task_id)
+                if self.escalation_router.should_escalate(repair.get("failure_type", ""), {"retry_count": step_state_now.retry_count}):
+                    target = self.escalation_router.choose_target(repair.get("failure_type", ""), authorization_contract.get("available_external_ai", []))
+                    repair["escalation"] = {"needed": True, "target": target, "reason": repair.get("failure_type")}
                 yield AgentEvent("failure_repair", {"repair": repair})
                 if not (authorization_contract.get("execution_policy", {}).get("autonomous_retry") and repair.get("should_retry")):
                     current_step_index += 1

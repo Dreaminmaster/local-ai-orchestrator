@@ -13,7 +13,8 @@ This repository is a **runnable MVP + final product blueprint** aligned with the
 - Final effects modules added: persistent browser profiles, External AI Web Operator, Desktop Visual Operator, confirmation queue, sandbox, plugin loader, task recovery, goal-level verifier, failure repair planner.
 - Two-dimensional strategy revision added: Goal Contract + Authorization Contract, `goal_mode × authorization_mode`, full-autonomy preflight, contract-based Agent entrypoint, and frontend dual selectors.
 - Contract runtime upgrade added: Clarification Session, `/ws/execute-contract`, dynamic Preflight, action-risk confirmation, contract verifier, and failure taxonomy.
-- See: [`docs/two_dimensional_strategy.md`](docs/two_dimensional_strategy.md), [`docs/contract_runtime_upgrade.md`](docs/contract_runtime_upgrade.md), [`docs/coverage_checklist.md`](docs/coverage_checklist.md), [`docs/final_effects_coverage.md`](docs/final_effects_coverage.md), [`docs/final_blueprint.md`](docs/final_blueprint.md), [`docs/architecture.md`](docs/architecture.md).
+- Local Model Optimization Layer added: context budgeting, JSON repair, step state, evidence retrieval, tool-result summarization, retry policy, and external AI escalation for weak local models.
+- See: [`docs/local_model_optimization.md`](docs/local_model_optimization.md), [`docs/two_dimensional_strategy.md`](docs/two_dimensional_strategy.md), [`docs/contract_runtime_upgrade.md`](docs/contract_runtime_upgrade.md), [`docs/coverage_checklist.md`](docs/coverage_checklist.md), [`docs/final_effects_coverage.md`](docs/final_effects_coverage.md), [`docs/final_blueprint.md`](docs/final_blueprint.md), [`docs/architecture.md`](docs/architecture.md).
 
 ## 📋 产品定位
 
