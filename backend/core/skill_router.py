@@ -40,8 +40,8 @@ class SkillRouter:
     def get_all_skills(self) -> dict[str, Skill]:
         return self.skills
 
-    def select(self, step: dict, gap: dict | None = None) -> list[str]:
-        """Select skill chain for a step, considering capability gaps."""
+    def select(self, step: dict, gap: dict | None = None, authorization_contract: dict | None = None) -> list[str]:
+        """Select skill chain for a step, considering capability gaps and Authorization Contract."""
         needed = step.get("needed_skills", [])
 
         # If there's a capability gap, add recommended tools
@@ -55,6 +55,10 @@ class SkillRouter:
 
         # Filter to available skills
         chain = [s for s in needed if s in self.skills]
+
+        # Enforce Authorization Contract capabilities
+        if authorization_contract:
+            chain = self._filter_by_authorization(chain, authorization_contract)
 
         # Always add self_verify at the end if not present
         if "self_verify" not in chain:
@@ -90,3 +94,26 @@ class SkillRouter:
                 break
 
         return results
+
+    def _filter_by_authorization(self, chain: list[str], authorization_contract: dict) -> list[str]:
+        caps = set(authorization_contract.get("granted_capabilities", []))
+        required = {
+            "file": {"read_files"},
+            "shell": {"run_shell"},
+            "browser": {"operate_browser"},
+            "desktop": {"operate_desktop"},
+            "desktop_visual": {"operate_desktop", "take_screenshots"},
+            "external_ai": {"ask_external_ai"},
+            "web_ai": {"ask_external_ai", "operate_browser"},
+            "visual_review": {"take_screenshots"},
+            "codex": {"modify_code"},
+            "memory": set(),
+            "search": set(),
+            "self_verify": set(),
+        }
+        allowed = []
+        for skill_name in chain:
+            needed = required.get(skill_name, set())
+            if needed.issubset(caps):
+                allowed.append(skill_name)
+        return allowed

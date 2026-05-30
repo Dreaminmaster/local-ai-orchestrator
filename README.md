@@ -11,7 +11,8 @@ This repository is a **runnable MVP + final product blueprint** aligned with the
 - Runnable now: FastAPI backend, Web workbench, local LLM connector, core agent loop, built-in Skills, Evidence Board, verifier, failure handler, reporter.
 - Final blueprint included: architecture docs, security policy, Skill SDK, external AI workspace design, desktop app roadmap, coverage checklist.
 - Final effects modules added: persistent browser profiles, External AI Web Operator, Desktop Visual Operator, confirmation queue, sandbox, plugin loader, task recovery, goal-level verifier, failure repair planner.
-- See: [`docs/coverage_checklist.md`](docs/coverage_checklist.md), [`docs/final_effects_coverage.md`](docs/final_effects_coverage.md), [`docs/final_blueprint.md`](docs/final_blueprint.md), [`docs/architecture.md`](docs/architecture.md).
+- Two-dimensional strategy revision added: Goal Contract + Authorization Contract, `goal_mode × authorization_mode`, full-autonomy preflight, contract-based Agent entrypoint, and frontend dual selectors.
+- See: [`docs/two_dimensional_strategy.md`](docs/two_dimensional_strategy.md), [`docs/coverage_checklist.md`](docs/coverage_checklist.md), [`docs/final_effects_coverage.md`](docs/final_effects_coverage.md), [`docs/final_blueprint.md`](docs/final_blueprint.md), [`docs/architecture.md`](docs/architecture.md).
 
 ## 📋 产品定位
 

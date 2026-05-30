@@ -229,6 +229,84 @@ class Agent:
             "success_rate": sum(1 for r in all_results if r.get("success")) / max(len(all_results), 1),
         })
 
+    async def run_with_contracts(self, goal_contract: dict, authorization_contract: dict) -> AsyncGenerator[AgentEvent, None]:
+        """Run agent with explicit Goal Contract and Authorization Contract.
+
+        This is the new two-dimensional strategy entrypoint:
+        goal understanding strategy × execution authorization strategy.
+        """
+        task_id = str(uuid.uuid4())[:12]
+        goal = {
+            "raw_input": goal_contract.get("original_input", ""),
+            "main_goal": goal_contract.get("final_goal", ""),
+            "task_type": "contract_task",
+            "implicit_needs": goal_contract.get("assumptions", []),
+            "success_criteria": goal_contract.get("success_criteria", []),
+            "goal_contract": goal_contract,
+            "authorization_contract": authorization_contract,
+        }
+
+        yield AgentEvent("goal_contract", {"goal_contract": goal_contract})
+        yield AgentEvent("authorization_contract", {"authorization_contract": authorization_contract})
+        self.evidence_board.save(task_id, None, "goal_contract", "contract", json.dumps(goal_contract, ensure_ascii=False), "Goal Contract for task")
+        self.evidence_board.save(task_id, None, "authorization_contract", "contract", json.dumps(authorization_contract, ensure_ascii=False), "Authorization Contract for task")
+
+        yield AgentEvent("phase", {"phase": "planning", "message": "📋 基于 Goal Contract 制定执行计划..."})
+        plan = await self.planner.create_plan(goal, {"authorization_contract": authorization_contract})
+        yield AgentEvent("plan", {"plan": plan})
+        steps = plan.get("plan", [])
+        if not steps:
+            yield AgentEvent("error", {"message": "无法生成执行计划"})
+            return
+
+        all_results, all_evidence = [], []
+        loop_count = consecutive_failures = current_step_index = 0
+        while current_step_index < len(steps):
+            loop_count += 1
+            step = steps[current_step_index]
+            step_id = f"step_{current_step_index + 1}"
+            yield AgentEvent("step_start", {"step": current_step_index + 1, "total": len(steps), "goal": step.get("goal", ""), "skills": step.get("needed_skills", [])})
+            state = self.observer.collect(task_id=task_id, recent_results=all_results[-3:], evidence_summary=self.evidence_board.get_summary(task_id))
+            state["goal_contract"] = goal_contract
+            state["authorization_contract"] = authorization_contract
+            yield AgentEvent("observer_state", {"state": state})
+            gap = await self.gap_detector.detect(step, state)
+            if gap.get("requires_help"):
+                yield AgentEvent("gap_detected", {"gap": gap})
+            skill_chain = self.skill_router.select(step, gap, authorization_contract)
+            yield AgentEvent("skills_selected", {"chain": skill_chain})
+            if not skill_chain or skill_chain == ["self_verify"]:
+                yield AgentEvent("permission_blocked", {"step": step, "reason": "Authorization Contract does not grant required capabilities"})
+            instruction = await self._generate_instruction(goal, step, gap)
+            context = {"task_id": task_id, "step": step, "goal": goal, "goal_contract": goal_contract, "authorization_contract": authorization_contract, "gap": gap, "previous_results": all_results[-3:]}
+            chain_results = await self.skill_router.execute_chain(skill_chain, instruction, context)
+            for r in chain_results:
+                evidence_entries = self.evidence_board.save_from_result(task_id, step_id, r)
+                all_evidence.extend(evidence_entries)
+                all_results.append(r)
+            step_success = any(r.get("success") for r in chain_results)
+            yield AgentEvent("step_result", {"step": current_step_index + 1, "success": step_success, "results": chain_results})
+            if step_success:
+                consecutive_failures = 0
+                current_step_index += 1
+            else:
+                consecutive_failures += 1
+                failure_info = {"step": step, "results": chain_results, "goal_contract": goal_contract, "authorization_contract": authorization_contract, "error": next((r.get("error") for r in chain_results if r.get("error")), "Unknown")}
+                repair = await self.failure_handler.diagnose(failure_info, state)
+                yield AgentEvent("failure_repair", {"repair": repair})
+                if not (authorization_contract.get("execution_policy", {}).get("autonomous_retry") and repair.get("should_retry")):
+                    current_step_index += 1
+            decision = self.supervisor.decide({"loop_count": loop_count, "consecutive_failures": consecutive_failures, "verified": False, "pending_steps": len(steps)-current_step_index, "has_high_risk_action": step.get("risk_level") in ("high", "critical") and authorization_contract.get("authorization_mode") != "full_autonomy"})
+            if decision in ("stop", "need_user"):
+                yield AgentEvent(decision, {"reason": "Supervisor decision based on contracts"})
+                break
+
+        verification = await self.verifier.check(goal, all_results, all_evidence)
+        yield AgentEvent("verification", {"result": verification})
+        report = await self.reporter.generate_with_contracts(goal_contract, authorization_contract, steps=[{"index": i, **r} for i, r in enumerate(all_results)], evidence=all_evidence)
+        yield AgentEvent("report", {"report": report})
+        yield AgentEvent("complete", {"task_id": task_id, "verified": verification.get("verified", False), "total_steps": len(all_results), "success_rate": sum(1 for r in all_results if r.get("success")) / max(len(all_results), 1)})
+
     async def _generate_instruction(self, goal: dict, step: dict, gap: dict) -> str:
         """Generate a specific instruction for skill execution."""
         messages = [

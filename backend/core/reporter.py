@@ -48,6 +48,62 @@ class Reporter:
             # Fallback: simple report
             return self._fallback_report(task, steps, evidence)
 
+    async def generate_with_contracts(self, goal_contract: dict, authorization_contract: dict, steps: list[dict], evidence: list[dict]) -> str:
+        """Generate report that separates goal understanding and authorization."""
+        task = {
+            "goal_understanding": goal_contract,
+            "execution_authorization": authorization_contract,
+        }
+        context = f"""目标理解部分：
+{json.dumps(goal_contract, ensure_ascii=False, indent=2)}
+
+执行授权部分：
+{json.dumps(authorization_contract, ensure_ascii=False, indent=2)}
+
+执行过程：
+{json.dumps(steps, ensure_ascii=False, indent=2)}
+
+证据：
+{json.dumps(evidence, ensure_ascii=False, indent=2)}"""
+        prompt = """请生成最终报告，必须分开说明：
+1. 目标理解部分：用户原始输入、目标理解策略、是否追问、AI 默认假设、最终目标、成功标准。
+2. 执行授权部分：执行授权策略、已授予能力、已提供资源、使用了哪些外部 AI、是否全自主执行。
+3. 执行过程：做了什么、问了谁、改了什么、运行了什么、遇到什么问题、如何自主修复。
+4. 证据：哪些证据证明完成。
+5. 未完成/不确定部分。"""
+        try:
+            resp = await self.llm.chat([LLMMessage(role="system", content=SYSTEM_PROMPT), LLMMessage(role="user", content=prompt + "\n\n" + context)], temperature=0.3)
+            return resp.content
+        except Exception:
+            return self._fallback_contract_report(goal_contract, authorization_contract, steps, evidence)
+
+    def _fallback_contract_report(self, goal_contract: dict, authorization_contract: dict, steps: list[dict], evidence: list[dict]) -> str:
+        lines = [
+            "# 任务报告",
+            "",
+            "## 目标理解部分",
+            f"- 用户原始输入：{goal_contract.get('original_input', '')}",
+            f"- 目标理解策略：{goal_contract.get('goal_mode', '')}",
+            f"- 最终目标：{goal_contract.get('final_goal', '')}",
+            f"- AI 默认假设：{', '.join(goal_contract.get('assumptions', []))}",
+            f"- 成功标准：{', '.join(goal_contract.get('success_criteria', []))}",
+            "",
+            "## 执行授权部分",
+            f"- 执行授权策略：{authorization_contract.get('authorization_mode', '')}",
+            f"- 已授予能力：{', '.join(authorization_contract.get('granted_capabilities', []))}",
+            f"- 已提供资源：{json.dumps(authorization_contract.get('provided_resources', {}), ensure_ascii=False)}",
+            f"- 可用外部 AI：{', '.join(authorization_contract.get('available_external_ai', []))}",
+            "",
+            "## 执行过程",
+        ]
+        for i, step in enumerate(steps, 1):
+            status = "✅" if step.get("success") else "❌"
+            lines.append(f"{i}. {status} {step.get('skill', step.get('goal', 'step'))}: {str(step.get('result', ''))[:160]}")
+        lines.extend(["", "## 证据"])
+        for ev in evidence:
+            lines.append(f"- [{ev.get('type', 'unknown')}] {ev.get('supports', ev.get('content', ''))}")
+        return "\n".join(lines)
+
     def _fallback_report(self, task: dict, steps: list[dict], evidence: list[dict]) -> str:
         """Generate a simple report without LLM."""
         lines = [

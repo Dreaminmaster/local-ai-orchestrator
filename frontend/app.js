@@ -33,12 +33,22 @@ const els = {
     statSuccess: document.getElementById('statSuccess'),
     statFailed: document.getElementById('statFailed'),
     statEvidence: document.getElementById('statEvidence'),
-    taskMemory: document.getElementById('taskMemory')
+    taskMemory: document.getElementById('taskMemory'),
+    goalMode: document.getElementById('goalMode'),
+    authorizationMode: document.getElementById('authorizationMode'),
+    projectPath: document.getElementById('projectPath'),
+    externalAi: document.getElementById('externalAi'),
+    userPreferences: document.getElementById('userPreferences'),
+    protectedPaths: document.getElementById('protectedPaths'),
+    capabilityGrid: document.getElementById('capabilityGrid'),
+    preflightPanel: document.getElementById('preflightPanel')
 };
 
 async function init() {
     await loadSkills();
     await loadAiProfiles();
+    initCapabilities();
+    togglePreflight();
     connectWebSocket();
 }
 
@@ -95,15 +105,68 @@ function connectWebSocket() {
     ws.onerror = e => console.error('WebSocket error:', e);
 }
 
-function executeTask() {
+async function executeTask() {
     const input = els.taskInput.value.trim();
     if (!input) return;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-        alert('WebSocket 未连接，请稍后重试。');
-        return;
-    }
     resetUi();
-    ws.send(JSON.stringify({ user_input: input }));
+    try {
+        log('生成 Goal Contract...', 'phase', '🎯', new Date().toLocaleTimeString());
+        const goalRes = await fetch(`${API_BASE}/api/task/prepare-goal`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ user_input: input, goal_mode: els.goalMode.value })
+        });
+        const goalContract = await goalRes.json();
+        handleEvent({type: 'goal_contract', data: {goal_contract: goalContract}, timestamp: new Date().toISOString()});
+        renderGoalContract(goalContract);
+
+        log('生成 Authorization Contract...', 'phase', '🔐', new Date().toLocaleTimeString());
+        const authRes = await fetch(`${API_BASE}/api/task/prepare-authorization`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(buildAuthorizationPayload())
+        });
+        const authorizationContract = await authRes.json();
+        handleEvent({type: 'authorization_contract', data: {authorization_contract: authorizationContract}, timestamp: new Date().toISOString()});
+
+        log('基于两个 Contract 启动 Agent...', 'phase', '🚀', new Date().toLocaleTimeString());
+        const startRes = await fetch(`${API_BASE}/api/task/start`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ goal_contract: goalContract, authorization_contract: authorizationContract })
+        });
+        const started = await startRes.json();
+        (started.events || []).forEach(handleEvent);
+    } catch (e) {
+        log(`启动失败: ${e.message}`, 'error', '💥', new Date().toLocaleTimeString());
+    } finally {
+        finishUi();
+    }
+}
+
+function buildAuthorizationPayload() {
+    return {
+        authorization_mode: els.authorizationMode.value,
+        provided_resources: {
+            project_path: els.projectPath.value,
+            user_preferences: els.userPreferences.value,
+            browser_profiles: (els.externalAi.value || '').split(',').map(x => x.trim()).filter(Boolean)
+        },
+        granted_capabilities: getSelectedCapabilities(),
+        available_external_ai: (els.externalAi.value || '').split(',').map(x => x.trim()).filter(Boolean),
+        protected_paths: (els.protectedPaths.value || '').split(',').map(x => x.trim()).filter(Boolean)
+    };
+}
+
+function initCapabilities() {
+    const caps = ['read_files','write_files','run_shell','install_dependencies','start_local_services','operate_browser','operate_desktop','use_clipboard','take_screenshots','ask_external_ai','share_diagnostics_with_external_ai','modify_code','autonomous_retry','autonomous_repair'];
+    els.capabilityGrid.innerHTML = caps.map(c => `<label><input type="checkbox" class="capabilityCheck" value="${c}" checked> ${c}</label>`).join('');
+}
+
+function getSelectedCapabilities() {
+    return Array.from(document.querySelectorAll('.capabilityCheck:checked')).map(x => x.value);
+}
+
+function togglePreflight() {
+    if (!els.preflightPanel) return;
+    els.preflightPanel.style.display = els.authorizationMode.value === 'full_autonomy' ? 'block' : 'none';
 }
 
 function resetUi() {
@@ -124,6 +187,8 @@ function handleEvent(event) {
     const { type, data, timestamp } = event;
     const time = new Date(timestamp).toLocaleTimeString();
     switch (type) {
+        case 'goal_contract': renderGoalContract(data.goal_contract); log('Goal Contract 已生成', 'success', '📄', time); break;
+        case 'authorization_contract': log(`Authorization Contract 已生成：${data.authorization_contract.authorization_mode}`, 'success', '🔐', time); addEvidence('authorization_contract', (data.authorization_contract.granted_capabilities || []).join(', '), true); break;
         case 'phase': log(data.message, 'phase', '🔄', time); break;
         case 'goal': renderGoal(data.goal); log('任务目标已解析', 'success', '🎯', time); break;
         case 'plan': renderPlan(data.plan); log(`生成执行计划，共 ${data.plan.total_steps} 步`, 'info', '📋', time); break;
@@ -156,6 +221,17 @@ function handleStepResult(data, time) {
 function finishUi() {
     els.executeBtn.disabled = false;
     els.executeBtn.innerHTML = '<span class="btn-icon">▶</span> 执行任务';
+}
+
+function renderGoalContract(contract) {
+    els.goalDisplay.innerHTML = `
+        <div><strong>目标理解策略:</strong> ${escapeHtml(contract.goal_mode || '')}</div>
+        <div><strong>最终目标:</strong> ${escapeHtml(contract.final_goal || '')}</div>
+        <div style="margin-top:4px; font-size:12px; color:var(--text-secondary)">
+            <strong>假设:</strong> ${(contract.assumptions || []).map(escapeHtml).join('；')}
+        </div>`;
+    els.criteriaList.innerHTML = '';
+    (contract.success_criteria || []).forEach(c => { const li = document.createElement('li'); li.textContent = c; els.criteriaList.appendChild(li); });
 }
 
 function renderGoal(goal) {

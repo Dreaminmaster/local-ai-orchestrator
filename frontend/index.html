@@ -49,11 +49,35 @@
             <!-- Center: Execution Area -->
             <main class="panel panel-center">
                 <!-- Task Input -->
-                <div class="task-input-area">
-                    <textarea id="taskInput" placeholder="输入你的任务，例如：帮我把这个网页做得更高级，不要低端模板感，自己检查效果。" rows="2"></textarea>
+                <div class="task-input-area two-dimensional-entry">
+                    <textarea id="taskInput" placeholder="输入你的任务，例如：帮我把这个仓库做成最终产品效果。" rows="2"></textarea>
+                    <div class="strategy-selectors">
+                        <label>目标理解策略
+                            <select id="goalMode">
+                                <option value="clarify_first">目标确认模式：先问清楚再确立目标</option>
+                                <option value="autonomous" selected>自主创意模式：AI 自己理解并发挥</option>
+                            </select>
+                        </label>
+                        <label>执行授权策略
+                            <select id="authorizationMode" onchange="togglePreflight()">
+                                <option value="standard">标准授权：关键动作前确认</option>
+                                <option value="full_autonomy" selected>全自主授权：开始前一次性索权，之后全自主执行</option>
+                            </select>
+                        </label>
+                    </div>
                     <button id="executeBtn" class="btn-execute" onclick="executeTask()">
-                        <span class="btn-icon">▶</span> 执行任务
+                        <span class="btn-icon">▶</span> 生成 Contract 并执行
                     </button>
+                </div>
+                <div id="preflightPanel" class="preflight-panel">
+                    <h3>🛫 全自主授权 Preflight</h3>
+                    <div class="preflight-grid">
+                        <input id="projectPath" placeholder="项目路径，例如 /path/to/project">
+                        <input id="externalAi" placeholder="已登录外部 AI，例如 ChatGPT, Claude, Gemini, Kimi">
+                        <input id="userPreferences" placeholder="用户偏好和目标重点，例如 高级、真实、不要低端模板感">
+                        <input id="protectedPaths" placeholder="不能动的文件/目录，用逗号分隔">
+                    </div>
+                    <div class="capability-grid" id="capabilityGrid"></div>
                 </div>
 
                 <!-- Execution Plan -->
