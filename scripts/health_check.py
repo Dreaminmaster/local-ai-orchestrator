@@ -21,6 +21,13 @@ REQUIRED = [
     "backend/evidence/board.py",
     "backend/evidence/snapshot.py",
     "backend/security/permissions.py",
+    "backend/browser/profile_manager.py",
+    "backend/skills/external_ai_web/web_ai_skill.py",
+    "backend/skills/desktop_visual/desktop_visual_skill.py",
+    "backend/confirmation/queue.py",
+    "backend/sandbox/workspace_manager.py",
+    "backend/plugins/plugin_loader.py",
+    "backend/recovery/task_checkpoint.py",
     "frontend/index.html",
     "frontend/style.css",
     "frontend/app.js",
@@ -44,6 +51,11 @@ def main() -> int:
         "backend.core.observer",
         "backend.evidence.snapshot",
         "backend.security.permissions",
+        "backend.skills.external_ai_web.web_ai_skill",
+        "backend.skills.desktop_visual.desktop_visual_skill",
+        "backend.confirmation.queue",
+        "backend.sandbox.workspace_manager",
+        "backend.plugins.plugin_loader",
     ]
     for name in imports:
         importlib.import_module(name)

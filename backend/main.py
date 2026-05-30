@@ -18,6 +18,7 @@ from backend.storage.database import Database
 from backend.api.tasks import router as tasks_router
 from backend.api.skills import router as skills_router
 from backend.api.websocket import router as ws_router
+from backend.api.confirmations import router as confirmations_router
 
 # ---------------------------------------------------------------------------
 # Lifespan
@@ -55,6 +56,7 @@ app.add_middleware(
 # API routes
 app.include_router(tasks_router, prefix="/api")
 app.include_router(skills_router, prefix="/api")
+app.include_router(confirmations_router, prefix="/api")
 app.include_router(ws_router, prefix="/ws")
 
 # Serve frontend

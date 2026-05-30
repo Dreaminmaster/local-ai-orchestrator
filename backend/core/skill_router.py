@@ -11,6 +11,8 @@ from backend.skills.visual_review_skill import VisualReviewSkill
 from backend.skills.self_verify_skill import SelfVerifySkill
 from backend.skills.codex_skill import CodexSkill
 from backend.skills.memory_skill import MemorySkill
+from backend.skills.external_ai_web.web_ai_skill import WebAISkill
+from backend.skills.desktop_visual.desktop_visual_skill import DesktopVisualSkill
 
 
 class SkillRouter:
@@ -23,8 +25,10 @@ class SkillRouter:
             "browser": BrowserSkill(),
             "desktop": DesktopSkill(),
             "external_ai": ExternalAISkill(),
+            "web_ai": WebAISkill(),
             "search": SearchSkill(),
             "visual_review": VisualReviewSkill(),
+            "desktop_visual": DesktopVisualSkill(),
             "codex": CodexSkill(),
             "memory": MemorySkill(),
             "self_verify": SelfVerifySkill(),

@@ -17,6 +17,7 @@ venv/
 # Storage
 storage/*.db
 evidence/
+runtime/
 .orchestrator_snapshots/
 *.log
 
