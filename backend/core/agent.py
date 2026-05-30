@@ -281,6 +281,9 @@ class Agent:
             context = {"task_id": task_id, "step": step, "goal": goal, "goal_contract": goal_contract, "authorization_contract": authorization_contract, "gap": gap, "previous_results": all_results[-3:]}
             chain_results = await self.skill_router.execute_chain(skill_chain, instruction, context)
             for r in chain_results:
+                if authorization_contract.get("authorization_mode") == "full_autonomy" and r.get("metadata", {}).get("autonomous_actions"):
+                    ev = self.evidence_board.save(task_id, step_id, "autonomous_action", "skill_router", json.dumps(r.get("metadata", {}).get("autonomous_actions"), ensure_ascii=False), "Full autonomy action executed within granted capabilities")
+                    all_evidence.append(ev)
                 evidence_entries = self.evidence_board.save_from_result(task_id, step_id, r)
                 all_evidence.extend(evidence_entries)
                 all_results.append(r)
@@ -301,7 +304,7 @@ class Agent:
                 yield AgentEvent(decision, {"reason": "Supervisor decision based on contracts"})
                 break
 
-        verification = await self.verifier.check(goal, all_results, all_evidence)
+        verification = await self.verifier.check_with_contracts(goal_contract, authorization_contract, all_results, all_evidence)
         yield AgentEvent("verification", {"result": verification})
         report = await self.reporter.generate_with_contracts(goal_contract, authorization_contract, steps=[{"index": i, **r} for i, r in enumerate(all_results)], evidence=all_evidence)
         yield AgentEvent("report", {"report": report})

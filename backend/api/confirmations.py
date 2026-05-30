@@ -1,10 +1,16 @@
 from fastapi import APIRouter
-from backend.confirmation.queue import ConfirmationQueue
+from backend.confirmation.queue import confirmation_queue
+
 router = APIRouter(tags=["confirmations"])
-queue = ConfirmationQueue()
+
 @router.get("/confirmations")
-async def list_confirmations(): return {"items": [x.__dict__ for x in queue.list()]}
+async def list_confirmations():
+    return {"items": [x.__dict__ for x in confirmation_queue.list()]}
+
 @router.post("/confirmations/{req_id}/approve")
-async def approve(req_id: str): return queue.decide(req_id, True).__dict__
+async def approve(req_id: str):
+    return confirmation_queue.decide(req_id, True).__dict__
+
 @router.post("/confirmations/{req_id}/reject")
-async def reject(req_id: str): return queue.decide(req_id, False).__dict__
+async def reject(req_id: str):
+    return confirmation_queue.decide(req_id, False).__dict__

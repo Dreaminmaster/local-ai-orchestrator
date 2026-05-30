@@ -89,20 +89,29 @@ async function loadAiProfiles() {
 }
 
 function connectWebSocket() {
-    els.llmStatus.className = 'status-dot connecting';
-    els.llmStatusText.textContent = '连接中...';
-    ws = new WebSocket(`${WS_BASE}/ws/execute`);
-    ws.onopen = () => {
-        els.llmStatus.className = 'status-dot connected';
-        els.llmStatusText.textContent = '已连接';
-    };
-    ws.onmessage = event => handleEvent(JSON.parse(event.data));
-    ws.onclose = () => {
-        els.llmStatus.className = 'status-dot';
-        els.llmStatusText.textContent = '未连接';
-        setTimeout(connectWebSocket, 3000);
-    };
-    ws.onerror = e => console.error('WebSocket error:', e);
+    els.llmStatus.className = 'status-dot connected';
+    els.llmStatusText.textContent = '就绪';
+}
+
+function connectContractWebSocket(goalContract, authorizationContract) {
+    return new Promise((resolve, reject) => {
+        const contractWs = new WebSocket(`${WS_BASE}/ws/execute-contract`);
+        contractWs.onopen = () => {
+            els.llmStatus.className = 'status-dot connected';
+            els.llmStatusText.textContent = 'Contract 流式执行中';
+            contractWs.send(JSON.stringify({ goal_contract: goalContract, authorization_contract: authorizationContract }));
+        };
+        contractWs.onmessage = event => {
+            const msg = JSON.parse(event.data);
+            handleEvent(msg);
+            if (['complete','stopped','need_user','error'].includes(msg.type)) {
+                contractWs.close();
+                resolve(msg);
+            }
+        };
+        contractWs.onerror = err => reject(err);
+        contractWs.onclose = () => { els.llmStatusText.textContent = '就绪'; };
+    });
 }
 
 async function executeTask() {
@@ -115,25 +124,50 @@ async function executeTask() {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ user_input: input, goal_mode: els.goalMode.value })
         });
-        const goalContract = await goalRes.json();
+        const preparedGoal = await goalRes.json();
+        let goalContract = preparedGoal.goal_contract || preparedGoal;
+        if (preparedGoal.needs_clarification) {
+            const session = preparedGoal.clarification_session;
+            const answers = collectClarificationAnswers(session);
+            const confirmRes = await fetch(`${API_BASE}/api/task/confirm-goal`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ clarification_session_id: session.id, answers })
+            });
+            goalContract = await confirmRes.json();
+        }
         handleEvent({type: 'goal_contract', data: {goal_contract: goalContract}, timestamp: new Date().toISOString()});
         renderGoalContract(goalContract);
+
+        let preflightResult = null;
+        if (els.authorizationMode.value === 'full_autonomy') {
+            const preflightRes = await fetch(`${API_BASE}/api/task/full-autonomy-preflight`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ user_input: input, goal_contract: goalContract })
+            });
+            preflightResult = await preflightRes.json();
+            renderDynamicPreflight(preflightResult);
+        }
 
         log('生成 Authorization Contract...', 'phase', '🔐', new Date().toLocaleTimeString());
         const authRes = await fetch(`${API_BASE}/api/task/prepare-authorization`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(buildAuthorizationPayload())
+            body: JSON.stringify(buildAuthorizationPayload(preflightResult))
         });
         const authorizationContract = await authRes.json();
         handleEvent({type: 'authorization_contract', data: {authorization_contract: authorizationContract}, timestamp: new Date().toISOString()});
 
-        log('基于两个 Contract 启动 Agent...', 'phase', '🚀', new Date().toLocaleTimeString());
-        const startRes = await fetch(`${API_BASE}/api/task/start`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ goal_contract: goalContract, authorization_contract: authorizationContract })
-        });
-        const started = await startRes.json();
-        (started.events || []).forEach(handleEvent);
+        log('通过 WebSocket 流式启动 Contract Agent...', 'phase', '🚀', new Date().toLocaleTimeString());
+        try {
+            await connectContractWebSocket(goalContract, authorizationContract);
+        } catch (wsError) {
+            log('WebSocket 失败，使用 REST fallback...', 'warning', '↩️', new Date().toLocaleTimeString());
+            const startRes = await fetch(`${API_BASE}/api/task/start`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ goal_contract: goalContract, authorization_contract: authorizationContract })
+            });
+            const started = await startRes.json();
+            (started.events || []).forEach(handleEvent);
+        }
     } catch (e) {
         log(`启动失败: ${e.message}`, 'error', '💥', new Date().toLocaleTimeString());
     } finally {
@@ -141,7 +175,27 @@ async function executeTask() {
     }
 }
 
-function buildAuthorizationPayload() {
+function collectClarificationAnswers(session) {
+    log('目标确认模式：收集澄清问题回答', 'warning', '❓', new Date().toLocaleTimeString());
+    return (session.questions || []).map(q => {
+        const answer = window.prompt(q.question, '') || '';
+        addEvidence('clarification_question', q.question, true);
+        addEvidence('clarification_answer', answer || '(empty)', true);
+        return { question_id: q.id, answer };
+    });
+}
+
+function renderDynamicPreflight(preflight) {
+    if (!preflight) return;
+    if (Array.isArray(preflight.required_capabilities)) {
+        els.capabilityGrid.innerHTML = preflight.required_capabilities.map(c => `<label><input type="checkbox" class="capabilityCheck" value="${escapeHtml(c)}" checked> ${escapeHtml(c)}</label>`).join('');
+    }
+    addMemory('Preflight required resources: ' + (preflight.required_resources || []).join(', '));
+    addMemory('Recommended external AI: ' + (preflight.recommended_external_ai || []).join(', '));
+    (preflight.preflight_questions || []).forEach(q => addMemory('Preflight: ' + q));
+}
+
+function buildAuthorizationPayload(preflightResult = null) {
     return {
         authorization_mode: els.authorizationMode.value,
         provided_resources: {
@@ -151,7 +205,8 @@ function buildAuthorizationPayload() {
         },
         granted_capabilities: getSelectedCapabilities(),
         available_external_ai: (els.externalAi.value || '').split(',').map(x => x.trim()).filter(Boolean),
-        protected_paths: (els.protectedPaths.value || '').split(',').map(x => x.trim()).filter(Boolean)
+        protected_paths: (els.protectedPaths.value || '').split(',').map(x => x.trim()).filter(Boolean),
+        preflight_result: preflightResult
     };
 }
 
@@ -193,6 +248,7 @@ function handleEvent(event) {
         case 'goal': renderGoal(data.goal); log('任务目标已解析', 'success', '🎯', time); break;
         case 'plan': renderPlan(data.plan); log(`生成执行计划，共 ${data.plan.total_steps} 步`, 'info', '📋', time); break;
         case 'step_start': updateStepStatus(data.step, 'active'); log(`[Step ${data.step}/${data.total}] ${data.goal}`, 'info', '▶️', time); break;
+        case 'permission_blocked': log(`权限不足: ${data.reason}`, 'warning', '🔒', time); break;
         case 'gap_detected': log(`发现能力缺口: ${data.gap.gap_type}`, 'warning', '⚠️', time); addMemory(`缺口: ${data.gap.gap_type}`); break;
         case 'skills_selected': log(`调用技能链: ${data.chain.join(' → ')}`, 'info', '🔧', time); break;
         case 'step_result': handleStepResult(data, time); break;

@@ -13,12 +13,17 @@ from backend.skills.codex_skill import CodexSkill
 from backend.skills.memory_skill import MemorySkill
 from backend.skills.external_ai_web.web_ai_skill import WebAISkill
 from backend.skills.desktop_visual.desktop_visual_skill import DesktopVisualSkill
+from backend.confirmation.action_risk_classifier import ActionRiskClassifier
+from backend.confirmation.queue import confirmation_queue
+from backend.confirmation.schemas import ConfirmationRequest
 
 
 class SkillRouter:
     """Routes tasks to the appropriate skill chain."""
 
     def __init__(self):
+        self.risk_classifier = ActionRiskClassifier()
+        self.confirmation_queue = confirmation_queue
         self.skills: dict[str, Skill] = {
             "shell": ShellSkill(),
             "file": FileSkill(),
@@ -81,7 +86,35 @@ class SkillRouter:
                 })
                 continue
 
+            authorization_contract = current_context.get("authorization_contract", {})
+            risk = self.risk_classifier.classify(skill_name, instruction, current_context, authorization_contract)
+            if risk.requires_confirmation:
+                req = self.confirmation_queue.add(ConfirmationRequest(
+                    action=f"skill:{skill_name}",
+                    risk_level=risk.risk_level,
+                    reason=risk.reason,
+                    payload={"instruction": instruction, "context": {"step": current_context.get("step")}},
+                ))
+                results.append({
+                    "skill": skill_name,
+                    "success": False,
+                    "result": "",
+                    "error": "Action requires confirmation",
+                    "needs_follow_up": True,
+                    "suggested_next_action": "await_confirmation",
+                    "metadata": {"confirmation_request": req.__dict__},
+                })
+                break
+            if authorization_contract.get("authorization_mode") == "full_autonomy":
+                current_context.setdefault("autonomous_actions", []).append({
+                    "skill": skill_name,
+                    "risk_level": risk.risk_level,
+                    "reason": risk.reason,
+                })
+
             result = await skill.execute(instruction, current_context)
+            if current_context.get("autonomous_actions"):
+                result.metadata.setdefault("autonomous_actions", list(current_context.get("autonomous_actions", [])))
             results.append(result.to_dict())
 
             # Pass result to next skill's context

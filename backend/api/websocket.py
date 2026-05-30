@@ -51,3 +51,42 @@ async def execute_task(websocket: WebSocket):
             await websocket.send_json({"type": "error", "data": {"message": str(e)}})
         except Exception:
             pass
+
+
+@router.websocket("/execute-contract")
+async def execute_contract_task(websocket: WebSocket):
+    """
+    Contract-based streaming execution.
+
+    Client sends:
+    {
+      "goal_contract": {...},
+      "authorization_contract": {...}
+    }
+    """
+    await websocket.accept()
+    try:
+        while True:
+            raw = await websocket.receive_text()
+            data = json.loads(raw)
+            goal_contract = data.get("goal_contract")
+            authorization_contract = data.get("authorization_contract")
+            if not goal_contract or not authorization_contract:
+                await websocket.send_json({"type": "error", "data": {"message": "goal_contract and authorization_contract required"}})
+                continue
+            agent = Agent()
+            try:
+                async for event in agent.run_with_contracts(goal_contract, authorization_contract):
+                    await websocket.send_text(event.to_json())
+            except Exception as e:
+                await websocket.send_json({
+                    "type": "error",
+                    "data": {"message": str(e), "traceback": traceback.format_exc()},
+                })
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"type": "error", "data": {"message": str(e)}})
+        except Exception:
+            pass
