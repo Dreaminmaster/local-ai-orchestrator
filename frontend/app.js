@@ -45,11 +45,15 @@ const els = {
   clarificationPanel: document.getElementById("clarificationPanel"),
   clarificationSummary: document.getElementById("clarificationSummary"),
   clarificationQuestions: document.getElementById("clarificationQuestions"),
+  pendingActionsList: document.getElementById("pendingActionsList"),
+  resumableTasksList: document.getElementById("resumableTasksList"),
 };
 
 async function init() {
   await loadSkills();
   await loadAiProfiles();
+  await loadPendingConfirmations();
+  await loadResumableTasks();
   initCapabilities();
   togglePreflight();
   connectWebSocket();
@@ -96,18 +100,23 @@ function connectWebSocket() {
   els.llmStatusText.textContent = "就绪";
 }
 
-function connectContractWebSocket(goalContract, authorizationContract) {
+function connectContractWebSocket(
+  goalContract,
+  authorizationContract,
+  taskId = null,
+) {
   return new Promise((resolve, reject) => {
     const contractWs = new WebSocket(`${WS_BASE}/ws/execute-contract`);
     contractWs.onopen = () => {
       els.llmStatus.className = "status-dot connected";
       els.llmStatusText.textContent = "Contract 流式执行中";
-      contractWs.send(
-        JSON.stringify({
-          goal_contract: goalContract,
-          authorization_contract: authorizationContract,
-        }),
-      );
+      const payload = taskId
+        ? { task_id: taskId }
+        : {
+            goal_contract: goalContract,
+            authorization_contract: authorizationContract,
+          };
+      contractWs.send(JSON.stringify(payload));
     };
     contractWs.onmessage = (event) => {
       const msg = JSON.parse(event.data);
@@ -490,6 +499,7 @@ function handleEvent(event) {
       break;
     case "need_user":
       finishUi();
+      loadPendingConfirmations();
       log(`需要用户确认: ${data.reason}`, "warning", "🙋", time);
       break;
     case "error":
@@ -621,3 +631,88 @@ function escapeHtml(str) {
 }
 
 init();
+
+async function loadPendingConfirmations() {
+  if (!els.pendingActionsList) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/confirmations/pending`);
+    const data = await res.json();
+    const items = data.items || [];
+    if (!items.length) {
+      els.pendingActionsList.innerHTML =
+        '<p class="placeholder">暂无待确认动作</p>';
+      return;
+    }
+    els.pendingActionsList.innerHTML = items
+      .map(
+        (item) => `<div class="memory-item">
+          <strong>${escapeHtml(item.skill || item.action)}</strong> · ${escapeHtml(item.risk_level)}<br>
+          <span>${escapeHtml(item.reason || "")}</span><br>
+          <button class="btn-secondary" onclick="approveConfirmation('${item.id}')">批准</button>
+          <button class="btn-secondary" onclick="rejectConfirmation('${item.id}')">拒绝</button>
+        </div>`,
+      )
+      .join("");
+  } catch (e) {
+    els.pendingActionsList.innerHTML = `<p class="placeholder">加载失败: ${escapeHtml(e.message)}</p>`;
+  }
+}
+
+async function approveConfirmation(id) {
+  await fetch(`${API_BASE}/api/confirmations/${id}/approve`, {
+    method: "POST",
+  });
+  log(
+    `已批准确认动作 ${id}，请重新执行或恢复任务继续。`,
+    "success",
+    "✅",
+    new Date().toLocaleTimeString(),
+  );
+  await loadPendingConfirmations();
+}
+
+async function rejectConfirmation(id) {
+  await fetch(`${API_BASE}/api/confirmations/${id}/reject`, { method: "POST" });
+  log(
+    `已拒绝确认动作 ${id}，后续将由 FailureHandler 重新规划。`,
+    "warning",
+    "❌",
+    new Date().toLocaleTimeString(),
+  );
+  await loadPendingConfirmations();
+}
+
+async function loadResumableTasks() {
+  if (!els.resumableTasksList) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/tasks/resumable`);
+    const data = await res.json();
+    const tasks = data.tasks || [];
+    if (!tasks.length) {
+      els.resumableTasksList.innerHTML =
+        '<p class="placeholder">暂无可恢复任务</p>';
+      return;
+    }
+    els.resumableTasksList.innerHTML = tasks
+      .map(
+        (task) => `<div class="memory-item">
+          <strong>${escapeHtml(task.task_id)}</strong><br>
+          step: ${task.current_step_index} · completed: ${(task.completed_steps || []).length} · failed: ${(task.failed_steps || []).length}<br>
+          <button class="btn-secondary" onclick="resumeTask('${task.task_id}')">恢复执行</button>
+        </div>`,
+      )
+      .join("");
+  } catch (e) {
+    els.resumableTasksList.innerHTML = `<p class="placeholder">加载失败: ${escapeHtml(e.message)}</p>`;
+  }
+}
+
+async function resumeTask(taskId) {
+  log(`恢复任务 ${taskId}`, "phase", "🔁", new Date().toLocaleTimeString());
+  resetUi();
+  try {
+    await connectContractWebSocket(null, null, taskId);
+  } finally {
+    finishUi();
+  }
+}

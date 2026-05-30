@@ -74,8 +74,14 @@ async def execute_contract_task(websocket: WebSocket):
         while True:
             raw = await websocket.receive_text()
             data = json.loads(raw)
+            task_id = data.get("task_id")
             goal_contract = data.get("goal_contract")
             authorization_contract = data.get("authorization_contract")
+            if task_id and not (goal_contract and authorization_contract):
+                agent = Agent()
+                async for event in agent.resume_from_step_state(task_id):
+                    await websocket.send_text(event.to_json())
+                continue
             if not goal_contract or not authorization_contract:
                 await websocket.send_json(
                     {

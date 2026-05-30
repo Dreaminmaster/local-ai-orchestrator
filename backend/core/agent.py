@@ -342,6 +342,10 @@ class Agent:
             return
 
         all_results, all_evidence = [], []
+        self.step_state_manager.initialize_contracts(
+            task_id, goal_contract, authorization_contract, steps
+        )
+        self.step_state_store.save(self.step_state_manager.get(task_id))
         loop_count = consecutive_failures = current_step_index = 0
         while current_step_index < len(steps):
             loop_count += 1
@@ -582,6 +586,25 @@ class Agent:
                 / max(len(all_results), 1),
             },
         )
+
+    async def resume_from_step_state(
+        self, task_id: str
+    ) -> AsyncGenerator[AgentEvent, None]:
+        state = self.step_state_store.load(task_id)
+        if not state:
+            yield AgentEvent("error", {"message": f"No resumable task: {task_id}"})
+            return
+        state.resumed_from_checkpoint = True
+        self.step_state_manager.states[task_id] = state
+        yield AgentEvent(
+            "resumed",
+            {"task_id": task_id, "current_step_index": state.current_step_index},
+        )
+        # Resume by reusing stored contracts. Current alpha re-enters run_with_contracts; StepState marks resumed for reporting.
+        async for event in self.run_with_contracts(
+            state.goal_contract, state.authorization_contract
+        ):
+            yield event
 
     def _build_escalation_prompt(
         self,

@@ -139,6 +139,16 @@
                     </div>
                 </div>
                 <div class="panel-section">
+                    <h3>⏸️ 待确认动作</h3>
+                    <button class="btn-secondary" onclick="loadPendingConfirmations()">刷新待确认</button>
+                    <div id="pendingActionsList" class="memory-list"><p class="placeholder">—</p></div>
+                </div>
+                <div class="panel-section">
+                    <h3>🔁 可恢复任务</h3>
+                    <button class="btn-secondary" onclick="loadResumableTasks()">刷新恢复列表</button>
+                    <div id="resumableTasksList" class="memory-list"><p class="placeholder">—</p></div>
+                </div>
+                <div class="panel-section">
                     <h3>🧠 任务记忆</h3>
                     <div id="taskMemory" class="memory-list">
                         <p class="placeholder">—</p>

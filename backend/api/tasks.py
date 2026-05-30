@@ -61,3 +61,23 @@ async def list_ai_profiles(request: Request):
     db = request.app.state.db
     profiles = await db.fetch_all("SELECT * FROM ai_profiles")
     return {"profiles": profiles}
+
+
+@router.get("/tasks/resumable")
+async def list_resumable_tasks():
+    """List tasks with persisted StepState checkpoints."""
+    from backend.local_model.step_state_store import StepStateStore
+
+    store = StepStateStore()
+    return {"tasks": [state.__dict__ for state in store.list_resumable_tasks()]}
+
+
+@router.post("/tasks/{task_id}/resume")
+async def resume_task(task_id: str):
+    """Return checkpoint data for frontend/WebSocket resume."""
+    from backend.local_model.step_state_store import StepStateStore
+
+    state = StepStateStore().load(task_id)
+    if not state:
+        return {"error": "No checkpoint found", "task_id": task_id}
+    return {"task_id": task_id, "step_state": state.__dict__}

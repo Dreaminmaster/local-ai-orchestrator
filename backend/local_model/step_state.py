@@ -10,6 +10,10 @@ class StepState:
     retry_count: int = 0
     last_tool_results: list[dict] = field(default_factory=list)
     next_actions: list[dict] = field(default_factory=list)
+    goal_contract: dict = field(default_factory=dict)
+    authorization_contract: dict = field(default_factory=dict)
+    plan_steps: list[dict] = field(default_factory=list)
+    resumed_from_checkpoint: bool = False
 
 
 class StepStateManager:
@@ -20,6 +24,19 @@ class StepStateManager:
         if task_id not in self.states:
             self.states[task_id] = StepState(task_id=task_id)
         return self.states[task_id]
+
+    def initialize_contracts(
+        self,
+        task_id: str,
+        goal_contract: dict,
+        authorization_contract: dict,
+        plan_steps: list[dict],
+    ):
+        s = self.get(task_id)
+        s.goal_contract = goal_contract
+        s.authorization_contract = authorization_contract
+        s.plan_steps = plan_steps
+        return s
 
     def mark_completed(self, task_id: str, step: dict, result: dict):
         s = self.get(task_id)
