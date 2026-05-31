@@ -49,6 +49,8 @@ class PatchExtractionResult:
     patches: list[ExtractedPatch] = field(default_factory=list)
     rejected: list[ExtractedPatch] = field(default_factory=list)
     summary: str = ""
+    needs_split: bool = False
+    suggested_action: str = ""
 
 
 class PatchExtractor:
@@ -116,8 +118,14 @@ class PatchExtractor:
             if patches
             else "No patches extracted from response"
         )
+        needs_split = len([p for p in patches if p.format == "diff"]) > 1
+        suggested_action = "split_into_single_file_patches" if needs_split else ""
         return PatchExtractionResult(
-            patches=patches, rejected=rejected, summary=summary
+            patches=patches,
+            rejected=rejected,
+            summary=summary,
+            needs_split=needs_split,
+            suggested_action=suggested_action,
         )
 
     def _guess_file_path(self, text: str, near_pos: int) -> str | None:

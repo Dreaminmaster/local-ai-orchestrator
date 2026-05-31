@@ -97,3 +97,32 @@ async def test_profile(provider: str):
         "needs_test_run": True,
         "command": f"PYTHONPATH=. python scripts/test_web_ai_{provider}.py",
     }
+
+
+@router.post("/web-ai/profiles/{provider}/reset")
+async def reset_profile(provider: str):
+    """Delete persistent profile and test reports for a provider."""
+    if provider not in PROVIDERS:
+        return {"error": f"Unknown provider: {provider}"}
+    import shutil
+
+    profile_dir = PROFILE_DIR / provider
+    test_path = _test_report_path(provider)
+
+    results = {}
+    if profile_dir.exists():
+        shutil.rmtree(profile_dir)
+        results["profile_deleted"] = True
+    if test_path.exists():
+        test_path.unlink()
+        results["test_report_deleted"] = True
+    # Also remove from profile_status
+    status = _load_status()
+    if provider in status:
+        del status[provider]
+        STATUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        STATUS_PATH.write_text(
+            json.dumps(status, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        results["status_cleared"] = True
+    return {"provider": provider, "results": results}
