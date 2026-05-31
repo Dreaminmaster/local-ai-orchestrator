@@ -285,12 +285,36 @@ class FileSkill(Skill):
                 )
             new_content = original.replace(marker, marker + insert_text, 1)
         elif patch.startswith("unified_diff:"):
-            return SkillResult(
-                skill=self.name,
-                success=False,
-                result="",
-                error="unified_diff patching is reserved but not enabled yet",
-            )
+            from .unified_diff_patcher import apply_unified_diff
+
+            diff_content = patch[len("unified_diff:") :]
+            try:
+                patched, applied, rejections = apply_unified_diff(
+                    original, diff_content
+                )
+            except Exception as exc:
+                return SkillResult(
+                    skill=self.name,
+                    success=False,
+                    result="",
+                    error=f"unified_diff parse error: {exc}",
+                )
+            if rejections:
+                return SkillResult(
+                    skill=self.name,
+                    success=False,
+                    result="",
+                    error=f"unified_diff rejected hunks: {rejections}",
+                )
+            if patched == original:
+                return SkillResult(
+                    skill=self.name,
+                    success=False,
+                    result="",
+                    error="unified_diff produced no change",
+                )
+            new_content = patched
+            operation = "unified_diff"
         else:
             return SkillResult(
                 skill=self.name,

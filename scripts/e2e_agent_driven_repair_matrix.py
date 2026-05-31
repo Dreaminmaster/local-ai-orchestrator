@@ -57,6 +57,21 @@ FIXTURES = {
         "file": "main.py",
         "patch": 'line_replace:10|||            "import sys; sys.exit(0)",\n',
     },
+    "broken_python_missing_package": {
+        "command": ["python3", "main.py"],
+        "file": "main.py",
+        "patch": "targeted_replace:import pandas_xyz_not_a_real_package  # ruff: noqa: F401|||        pass # package import removed by agent replacement\n",
+    },
+    "broken_node_missing_package": {
+        "command": ["node", "index.js"],
+        "file": "index.js",
+        "patch": "line_replace:3|||    const pkg = null; // require removed by agent\n",
+    },
+    "broken_wrong_package_script": {
+        "command": ["python3", "main.py"],
+        "file": "main.py",
+        "patch": 'line_replace:6|||    result = subprocess.run(["echo", "fixed by agent"], capture_output=True, text=True)\n',
+    },
 }
 
 
@@ -176,6 +191,9 @@ async def main():
         "broken_node_module_not_found",
         "broken_node_syntax",
         "broken_package_script",
+        "broken_python_missing_package",
+        "broken_node_missing_package",
+        "broken_wrong_package_script",
     ]:
         spec = FIXTURES[name]
         result = await test_fixture(agent, name, spec)
