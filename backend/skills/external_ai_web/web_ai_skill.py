@@ -9,6 +9,7 @@ from .doubao_web_adapter import DoubaoWebAdapter
 from .gemini_web_adapter import GeminiWebAdapter
 from .kimi_web_adapter import KimiWebAdapter
 from .evidence_writer import WebAIEvidenceWriter
+from backend.security.secret_scanner import SecretScanner
 
 ADAPTERS = {
     "chatgpt": ChatGPTWebAdapter,
@@ -43,6 +44,7 @@ class WebAISkill(Skill):
 
     def __init__(self):
         self.evidence_writer = WebAIEvidenceWriter()
+        self.secret_scanner = SecretScanner()
 
     async def can_handle(self, task: dict, state: dict) -> bool:
         return "web ai" in task.get("description", "").lower()
@@ -52,6 +54,9 @@ class WebAISkill(Skill):
             context.get("provider") or context.get("target") or "chatgpt"
         ).lower()
         prompt = context.get("question") or context.get("prompt") or instruction
+        redaction = self.secret_scanner.redact(prompt)
+        prompt = redaction.redacted_text
+        redaction_meta = self.secret_scanner.evidence_summary(redaction)
         adapter_cls = ADAPTERS.get(provider)
         if not adapter_cls:
             return SkillResult(
@@ -81,7 +86,10 @@ class WebAISkill(Skill):
                         provider,
                         prompt,
                         "\n\n--- FOLLOW UP ---\n\n".join(answers),
-                        {"followups": max(0, len(answers) - 1)},
+                        {
+                            "followups": max(0, len(answers) - 1),
+                            "redaction": redaction_meta,
+                        },
                     )
                 )
             try:
@@ -106,6 +114,7 @@ class WebAISkill(Skill):
                     "needs_login": response.needs_login,
                     "followups": max(0, len(answers) - 1),
                     "profile": PROFILE_NAMES.get(provider, provider),
+                    "redaction": redaction_meta,
                 },
             )
         except Exception as exc:

@@ -59,7 +59,11 @@ class FileSkill(Skill):
                     context.get("new_string", ""),
                 )
             elif action == "apply_patch":
-                return await self._apply_patch(path, context.get("patch", ""))
+                return await self._apply_patch(
+                    path,
+                    context.get("patch", ""),
+                    dry_run=bool(context.get("dry_run", False)),
+                )
             elif action == "backup_before_write":
                 return await self._take_snapshot(path)
             elif action == "restore_backup":
@@ -187,28 +191,106 @@ class FileSkill(Skill):
             evidence=[path],
         )
 
-    async def _apply_patch(self, path: str, patch: str) -> SkillResult:
-        """Minimal patch support for simple append/prepend replacements.
+    async def _apply_patch(
+        self,
+        path: str,
+        patch: str,
+        dry_run: bool = False,
+    ) -> SkillResult:
+        """Apply a small safe patch.
 
-        This intentionally avoids pretending to be a full unified-diff engine.
-        Supported formats:
-        - 'prepend:<text>'
-        - 'append:<text>'
+        Supported patch formats:
+        - prepend:<text>
+        - append:<text>
+        - targeted_replace:<old>|||<new>
+        - line_replace:<line_number>|||<new_line>
+        - insert_before:<marker>|||<text>
+        - insert_after:<marker>|||<text>
+        - unified_diff:<diff> (reserved; returns unsupported for now)
         """
-        p = Path(path)
-        if not p.exists():
+        target = Path(path)
+        if not target.exists():
             return SkillResult(
                 skill=self.name,
                 success=False,
                 result="",
                 error=f"File not found: {path}",
             )
-        await self._take_snapshot(path)
-        content = p.read_text(encoding="utf-8")
+        original = target.read_text(encoding="utf-8")
+        new_content = original
+        operation = "unknown"
         if patch.startswith("prepend:"):
-            content = patch[len("prepend:") :] + content
+            operation = "prepend"
+            new_content = patch[len("prepend:") :] + original
         elif patch.startswith("append:"):
-            content = content + patch[len("append:") :]
+            operation = "append"
+            new_content = original + patch[len("append:") :]
+        elif patch.startswith("targeted_replace:"):
+            operation = "targeted_replace"
+            payload = patch[len("targeted_replace:") :]
+            old, sep, new = payload.partition("|||")
+            if not sep or old not in original:
+                return SkillResult(
+                    skill=self.name,
+                    success=False,
+                    result="",
+                    error="targeted_replace requires old|||new and old must exist",
+                )
+            new_content = original.replace(old, new, 1)
+        elif patch.startswith("line_replace:"):
+            operation = "line_replace"
+            payload = patch[len("line_replace:") :]
+            line_no_raw, sep, new_line = payload.partition("|||")
+            if not sep:
+                return SkillResult(
+                    skill=self.name,
+                    success=False,
+                    result="",
+                    error="line_replace requires line_number|||new_line",
+                )
+            line_no = int(line_no_raw)
+            lines = original.splitlines(keepends=True)
+            if line_no < 1 or line_no > len(lines):
+                return SkillResult(
+                    skill=self.name,
+                    success=False,
+                    result="",
+                    error=f"line out of range: {line_no}",
+                )
+            newline = "\n" if lines[line_no - 1].endswith("\n") else ""
+            lines[line_no - 1] = new_line + newline
+            new_content = "".join(lines)
+        elif patch.startswith("insert_before:"):
+            operation = "insert_before"
+            payload = patch[len("insert_before:") :]
+            marker, sep, insert_text = payload.partition("|||")
+            if not sep or marker not in original:
+                return SkillResult(
+                    skill=self.name,
+                    success=False,
+                    result="",
+                    error="insert_before requires marker|||text and marker must exist",
+                )
+            new_content = original.replace(marker, insert_text + marker, 1)
+        elif patch.startswith("insert_after:"):
+            operation = "insert_after"
+            payload = patch[len("insert_after:") :]
+            marker, sep, insert_text = payload.partition("|||")
+            if not sep or marker not in original:
+                return SkillResult(
+                    skill=self.name,
+                    success=False,
+                    result="",
+                    error="insert_after requires marker|||text and marker must exist",
+                )
+            new_content = original.replace(marker, marker + insert_text, 1)
+        elif patch.startswith("unified_diff:"):
+            return SkillResult(
+                skill=self.name,
+                success=False,
+                result="",
+                error="unified_diff patching is reserved but not enabled yet",
+            )
         else:
             return SkillResult(
                 skill=self.name,
@@ -216,12 +298,35 @@ class FileSkill(Skill):
                 result="",
                 error="Unsupported patch format",
             )
-        p.write_text(content, encoding="utf-8")
+        if dry_run:
+            return SkillResult(
+                skill=self.name,
+                success=True,
+                result=f"Dry run patch {operation} would change {path}",
+                metadata={"operation": operation, "changed": new_content != original},
+            )
+        snapshot = await self._take_snapshot(path)
+        backup_path = (
+            snapshot.evidence[0] if snapshot.success and snapshot.evidence else None
+        )
+        try:
+            target.write_text(new_content, encoding="utf-8")
+        except Exception as exc:
+            if backup_path:
+                await self._restore_backup(path, backup_path)
+            return SkillResult(
+                skill=self.name,
+                success=False,
+                result="",
+                error=f"Patch failed and backup restored: {exc}",
+                evidence=[backup_path] if backup_path else [],
+            )
         return SkillResult(
             skill=self.name,
             success=True,
-            result=f"Patch applied to {path}",
-            evidence=[path],
+            result=f"Patch applied to {path} ({operation})",
+            evidence=[path] + ([backup_path] if backup_path else []),
+            metadata={"operation": operation, "backup_path": backup_path},
         )
 
     async def _restore_backup(self, path: str, backup_path: str) -> SkillResult:

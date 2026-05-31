@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import pathlib
 import py_compile
+import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -21,6 +22,7 @@ REQUIRED = [
     "backend/core/reporter.py",
     "backend/evidence/board.py",
     "backend/evidence/snapshot.py",
+    "backend/security/secret_scanner.py",
     "backend/security/permissions.py",
     "backend/schemas/goal_contract.py",
     "backend/schemas/authorization_contract.py",
@@ -53,6 +55,7 @@ REQUIRED = [
     "frontend/index.html",
     "frontend/style.css",
     "frontend/app.js",
+    "scripts/check_readable_format.py",
 ]
 
 
@@ -77,6 +80,7 @@ def main() -> int:
         "backend.core.dynamic_preflight",
         "backend.api.contracts",
         "backend.evidence.snapshot",
+        "backend.security.secret_scanner",
         "backend.security.permissions",
         "backend.local_model.context_manager",
         "backend.local_model.json_repair",
@@ -92,6 +96,16 @@ def main() -> int:
     ]
     for name in imports:
         importlib.import_module(name)
+
+    readable = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/check_readable_format.py")],
+        text=True,
+        capture_output=True,
+    )
+    if readable.returncode != 0:
+        print(readable.stdout)
+        print(readable.stderr)
+        return readable.returncode
 
     print("OK: repository health check passed")
     return 0

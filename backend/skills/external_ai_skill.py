@@ -5,6 +5,7 @@ import json
 import os
 import httpx
 from .base import Skill, SkillResult, RiskLevel
+from backend.security.secret_scanner import SecretScanner
 
 # External AI capability profiles
 AI_PROFILES = {
@@ -55,6 +56,9 @@ class ExternalAISkill(Skill):
         "compare_answers",
     ]
     risk_level = RiskLevel.LOW
+
+    def __init__(self):
+        self.secret_scanner = SecretScanner()
 
     async def can_handle(self, task: dict, state: dict) -> bool:
         keywords = [
@@ -130,26 +134,47 @@ class ExternalAISkill(Skill):
                 error=f"{profile['name']} API key not configured ({profile['env_key']})",
             )
 
+        redaction = self.secret_scanner.redact(question)
+        safe_question = redaction.redacted_text
+        redaction_meta = self.secret_scanner.evidence_summary(redaction)
+
         # Use OpenAI-compatible format for ChatGPT and DeepSeek
         if target in ("chatgpt", "deepseek"):
             return await self._call_openai_compatible(
                 base_url=profile["base_url"],
                 api_key=api_key,
                 model=profile["model"],
-                question=question,
+                question=safe_question,
                 target_name=profile["name"],
+                redaction_meta=redaction_meta,
             )
         elif target == "claude":
-            return await self._call_anthropic(api_key, profile["model"], question)
+            return await self._call_anthropic(
+                api_key,
+                profile["model"],
+                safe_question,
+                redaction_meta,
+            )
         elif target == "gemini":
-            return await self._call_gemini(api_key, profile["model"], question)
+            return await self._call_gemini(
+                api_key,
+                profile["model"],
+                safe_question,
+                redaction_meta,
+            )
 
         return SkillResult(
             skill=self.name, success=False, result="", error="Unsupported target"
         )
 
     async def _call_openai_compatible(
-        self, base_url: str, api_key: str, model: str, question: str, target_name: str
+        self,
+        base_url: str,
+        api_key: str,
+        model: str,
+        question: str,
+        target_name: str,
+        redaction_meta: dict | None = None,
     ) -> SkillResult:
         headers = {
             "Authorization": f"Bearer {api_key}",
@@ -171,11 +196,19 @@ class ExternalAISkill(Skill):
             skill=self.name,
             success=True,
             result=answer,
-            metadata={"target": target_name, "model": model},
+            metadata={
+                "target": target_name,
+                "model": model,
+                "redaction": redaction_meta or {},
+            },
         )
 
     async def _call_anthropic(
-        self, api_key: str, model: str, question: str
+        self,
+        api_key: str,
+        model: str,
+        question: str,
+        redaction_meta: dict | None = None,
     ) -> SkillResult:
         headers = {
             "x-api-key": api_key,
@@ -198,11 +231,19 @@ class ExternalAISkill(Skill):
             skill=self.name,
             success=True,
             result=answer,
-            metadata={"target": "Claude", "model": model},
+            metadata={
+                "target": "Claude",
+                "model": model,
+                "redaction": redaction_meta or {},
+            },
         )
 
     async def _call_gemini(
-        self, api_key: str, model: str, question: str
+        self,
+        api_key: str,
+        model: str,
+        question: str,
+        redaction_meta: dict | None = None,
     ) -> SkillResult:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         payload = {"contents": [{"parts": [{"text": question}]}]}
@@ -215,7 +256,11 @@ class ExternalAISkill(Skill):
             skill=self.name,
             success=True,
             result=answer,
-            metadata={"target": "Gemini", "model": model},
+            metadata={
+                "target": "Gemini",
+                "model": model,
+                "redaction": redaction_meta or {},
+            },
         )
 
     async def _compare(self, question: str, context: dict) -> SkillResult:

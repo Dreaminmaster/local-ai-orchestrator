@@ -152,6 +152,11 @@ class SkillRouter:
                     "autonomous_actions",
                     list(current_context.get("autonomous_actions", [])),
                 )
+            if current_context.get("autonomous_sensitive_actions"):
+                result.metadata.setdefault(
+                    "autonomous_sensitive_actions",
+                    list(current_context.get("autonomous_sensitive_actions", [])),
+                )
             results.append(result.to_dict())
 
             # Pass result to next skill's context

@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import os
 from .base import Skill, SkillResult, RiskLevel
+from backend.security.secret_scanner import SecretScanner
 
 
 class CodexSkill(Skill):
@@ -19,12 +20,18 @@ class CodexSkill(Skill):
     capabilities = ["code_fix", "code_review", "code_generation", "debugging"]
     risk_level = RiskLevel.MEDIUM
 
+    def __init__(self):
+        self.secret_scanner = SecretScanner()
+
     async def can_handle(self, task: dict, state: dict) -> bool:
         desc = task.get("description", "").lower()
         return any(k in desc for k in ["code", "bug", "debug", "fix", "implement"])
 
     async def execute(self, instruction: str, context: dict) -> SkillResult:
         cli = os.getenv("CODE_AGENT_CLI", "").strip()
+        redaction = self.secret_scanner.redact(instruction)
+        instruction = redaction.redacted_text
+        redaction_meta = self.secret_scanner.evidence_summary(redaction)
         cwd = context.get("cwd", os.getcwd())
         if not cli:
             return SkillResult(
@@ -36,7 +43,7 @@ class CodexSkill(Skill):
                 ),
                 needs_follow_up=True,
                 suggested_next_action="configure_CODE_AGENT_CLI_or_use_file_skill",
-                metadata={"mode": "advisory"},
+                metadata={"mode": "advisory", "redaction": redaction_meta},
             )
 
         cmd = f"{cli} {instruction!r}"
@@ -55,7 +62,11 @@ class CodexSkill(Skill):
                 success=proc.returncode == 0,
                 result=stdout or stderr,
                 error=None if proc.returncode == 0 else stderr,
-                metadata={"command": cmd, "exit_code": proc.returncode},
+                metadata={
+                    "command": cmd,
+                    "exit_code": proc.returncode,
+                    "redaction": redaction_meta,
+                },
             )
         except Exception as exc:
             return SkillResult(
