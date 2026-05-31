@@ -76,48 +76,59 @@ Reporter
 | ✅ **会自我校验**     | 用证据验证每一步是否真的成功               |
 | 📝 **会输出报告**     | 完整的执行报告，包含做了什么、为什么、证据 |
 
-## 🚀 快速开始
+## 🚀 最简单本地运行方式
 
-### 环境要求
-
-- Python 3.10+
-- Node.js 18+ (可选，用于前端开发)
-- 本地 LLM 服务 (LM Studio / Ollama / 其他 OpenAI 兼容 API)
-
-### 安装
+### macOS / Linux
 
 ```bash
-# 克隆仓库
+# 1. 一键安装
+./scripts/local_setup_mac.sh
+
+# 2. 检查环境
+python3 scripts/doctor.py
+
+# 3. 启动
+./scripts/start_local.sh
+```
+
+### Windows
+
+```powershell
+# 1. 一键安装
+.\scripts\local_setup_windows.ps1
+
+# 2. 检查环境
+python scripts/doctor.py
+
+# 3. 启动
+.\scripts\start_local_windows.ps1
+```
+
+打开 http://localhost:8422
+
+### 常见错误
+
+| 错误 | 解决 |
+|---|---|
+| LM Studio 没开 | 打开 LM Studio，加载模型，确认端口 1234 |
+| Ollama 没开 | `ollama serve` 然后 `ollama pull llama3` |
+| Playwright 没装 | `playwright install chromium` |
+| 端口被占用 | 改 `.env` 中的 `PORT` 或用 `lsof -i :8422` 查看 |
+| .env 缺失 | `cp .env.example .env` 然后编辑 |
+| `pip` 报错 | 确认在 venv 中：`source venv/bin/activate` |
+
+### 传统安装方式
+
+```bash
 git clone https://github.com/Dreaminmaster/local-ai-orchestrator.git
 cd local-ai-orchestrator
-
-# 创建虚拟环境
 python -m venv venv
-source venv/bin/activate  # Linux/macOS
-# venv\Scripts\activate   # Windows
-
-# 安装依赖
+source venv/bin/activate
 pip install -r requirements.txt
-
-# 安装 Playwright 浏览器 (可选，用于浏览器自动化)
-playwright install chromium
-```
-
-### 配置
-
-```bash
-# 复制配置模板
 cp .env.example .env
-
-# 编辑配置文件
-# 设置本地模型地址、外部 AI API Key 等
-```
-
-### 启动
-
-```bash
-# 启动后端服务
+# 编辑 .env 配置本地模型
 python -m backend.main
+```
 
 # 访问 Web 控制台
 # 打开浏览器访问 http://localhost:8422

@@ -56,6 +56,11 @@ REQUIRED = [
     "frontend/style.css",
     "frontend/app.js",
     "scripts/check_readable_format.py",
+    "scripts/local_setup_mac.sh",
+    "scripts/local_setup_windows.ps1",
+    "scripts/start_local.sh",
+    "scripts/start_local_windows.ps1",
+    "scripts/doctor.py",
 ]
 
 

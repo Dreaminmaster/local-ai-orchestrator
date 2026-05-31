@@ -746,26 +746,75 @@ async function loadWebAiProfiles() {
     const res = await fetch(`${API_BASE}/api/web-ai/profiles/status`);
     const data = await res.json();
     const profiles = data.profiles || {};
-    const statusList = Object.values(profiles);
-    if (!statusList.length) return;
-    const html = statusList
-      .map(
-        (p) =>
-          `<div class="ai-profile-item"><div class="ai-profile-dot ${p.test_status === "PASS" ? "available" : p.test_status === "PARTIAL" ? "available" : "unavailable"}"></div><span>${escapeHtml(p.provider)}</span> · <small>${escapeHtml(p.test_status)}</small></div>`,
-      )
-      .join("");
-    addMemory("External AI profile status refreshed");
-    const existingEl = document.querySelector(".ai-profiles");
-    if (existingEl && data.profiles && Object.keys(data.profiles).length > 0) {
-      // Update aiProfiles div if exists
-      const profilesEl = document.getElementById("aiProfiles");
-      if (profilesEl) {
-        profilesEl.innerHTML =
-          html ||
-          '<p class="placeholder">No external AI profiles found</p>';
-      }
+    const container = document.getElementById("aiProfiles");
+    if (!container) return;
+    const providers = ["chatgpt", "claude", "doubao", "gemini", "kimi"];
+    let html = '<div style="display:flex;flex-direction:column;gap:6px;">';
+    for (const provider of providers) {
+      const p = profiles[provider] || {
+        test_status: "not_run",
+        logged_in: false,
+        initialized: false,
+      };
+      const dotClass =
+        p.test_status === "PASS"
+          ? "available"
+          : p.test_status === "PARTIAL"
+          ? "available"
+          : "unavailable";
+      const testedLabel = p.test_summary?.created_at
+        ? new Date(p.test_summary.created_at).toLocaleDateString()
+        : "—";
+      html += `<div class="ai-profile-item" style="flex-direction:column;align-items:flex-start;gap:2px;">
+        <div class="ai-profile-dot ${dotClass}"></div>
+        <span><strong>${escapeHtml(provider)}</strong></span>
+        <small>${escapeHtml(p.test_status)} · logged_in:${p.logged_in} · tested:${testedLabel}</small>
+        <div style="display:flex;gap:4px;margin-top:2px;">
+          <button class="btn-secondary" onclick="initWebAiProfile('${provider}')" style="font-size:10px;padding:2px 6px;">Init</button>
+          <button class="btn-secondary" onclick="testWebAiProfile('${provider}')" style="font-size:10px;padding:2px 6px;">Test</button>
+          <button class="btn-secondary" onclick="resetWebAiProfile('${provider}')" style="font-size:10px;padding:2px 6px;">Reset</button>
+        </div>
+      </div>`;
     }
+    html += "</div>";
+    container.innerHTML = html;
   } catch (e) {
     /* non-critical */
   }
+}
+
+async function initWebAiProfile(provider) {
+  log(`请手动登录 ${provider}，启动外部浏览器...`, "phase", "🌐", new Date().toLocaleTimeString());
+  try {
+    await fetch(`${API_BASE}/api/web-ai/profiles/${provider}/init`, { method: "POST" });
+    alert(`请在打开的浏览器窗口中手动登录 ${provider}，登录后运行初始化向导。
+
+终端命令: PYTHONPATH=. python scripts/init_web_ai_profile.py --provider ${provider}`);
+  } catch (e) {
+    log(`初始化失败: ${e.message}`, "error", "❌", new Date().toLocaleTimeString());
+  }
+  await loadWebAiProfiles();
+}
+
+async function testWebAiProfile(provider) {
+  log(`测试 ${provider} 连接...`, "phase", "🧪", new Date().toLocaleTimeString());
+  try {
+    const res = await fetch(`${API_BASE}/api/web-ai/profiles/${provider}/test`, { method: "POST" });
+    const data = await res.json();
+    if (data.result) {
+      log(`${provider}: ${data.result.success ? "PASS" : "FAIL"}`, data.result.success ? "success" : "warning", data.result.success ? "✅" : "❌", new Date().toLocaleTimeString());
+    } else if (data.needs_test_run) {
+      log(`${provider} 需要在终端运行测试命令`, "warning", "⚠️", new Date().toLocaleTimeString());
+    }
+  } catch (e) {
+    log(`测试失败: ${e.message}`, "error", "❌", new Date().toLocaleTimeString());
+  }
+  await loadWebAiProfiles();
+}
+
+async function resetWebAiProfile(provider) {
+  if (!confirm(`确认重置 ${provider} 的 profile 和测试数据？`)) return;
+  await fetch(`${API_BASE}/api/web-ai/profiles/${provider}/reset`, { method: "POST" });
+  log(`${provider} profile 已重置`, "info", "🗑️", new Date().toLocaleTimeString());
+  await loadWebAiProfiles();
 }
