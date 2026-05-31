@@ -43,23 +43,22 @@ def apply_hunks(
     """Apply hunks to original lines. Returns (result_lines, rejections)."""
     result = list(original_lines)
     rejections = []
-    # Process hunks in reverse order to preserve line numbers
+    # Process hunks from last to first to preserve line numbers
     for hunk in reversed(hunks):
-        old_start = hunk["old_start"] - 1  # 0-based
+        old_start = hunk["old_start"] - 1
         old_end = old_start + hunk["old_count"]
         ops = hunk["operations"]
-        # Build expected original slice from keep/remove lines
-        expected_lines = []
         replacement_lines = []
+        expected_lines = []  # lines expected at the original location (keep + remove)
         for op, text in ops:
             if op == "keep":
+                replacement_lines.append(text + "\n")
                 expected_lines.append(text)
-                replacement_lines.append(text)
             elif op == "remove":
                 expected_lines.append(text)
             elif op == "add":
-                replacement_lines.append(text)
-        # Verify the original matches expected
+                replacement_lines.append(text + "\n")
+        # Verify context: keep + remove lines must match actual slice
         actual_slice = result[old_start:old_end]
         ok = True
         if len(expected_lines) != len(actual_slice):

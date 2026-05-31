@@ -54,6 +54,7 @@ async function init() {
   await loadAiProfiles();
   await loadPendingConfirmations();
   await loadResumableTasks();
+  await loadWebAiProfiles();
   initCapabilities();
   togglePreflight();
   connectWebSocket();
@@ -737,5 +738,34 @@ async function resumeTask(taskId) {
     await connectContractWebSocket(null, null, taskId);
   } finally {
     finishUi();
+  }
+}
+
+async function loadWebAiProfiles() {
+  try {
+    const res = await fetch(`${API_BASE}/api/web-ai/profiles/status`);
+    const data = await res.json();
+    const profiles = data.profiles || {};
+    const statusList = Object.values(profiles);
+    if (!statusList.length) return;
+    const html = statusList
+      .map(
+        (p) =>
+          `<div class="ai-profile-item"><div class="ai-profile-dot ${p.test_status === "PASS" ? "available" : p.test_status === "PARTIAL" ? "available" : "unavailable"}"></div><span>${escapeHtml(p.provider)}</span> · <small>${escapeHtml(p.test_status)}</small></div>`,
+      )
+      .join("");
+    addMemory("External AI profile status refreshed");
+    const existingEl = document.querySelector(".ai-profiles");
+    if (existingEl && data.profiles && Object.keys(data.profiles).length > 0) {
+      // Update aiProfiles div if exists
+      const profilesEl = document.getElementById("aiProfiles");
+      if (profilesEl) {
+        profilesEl.innerHTML =
+          html ||
+          '<p class="placeholder">No external AI profiles found</p>';
+      }
+    }
+  } catch (e) {
+    /* non-critical */
   }
 }
