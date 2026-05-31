@@ -68,6 +68,8 @@ def main() -> int:
         return 1
 
     for py in (ROOT / "backend").rglob("*.py"):
+        if "tests/fixtures" in str(py):
+            continue
         py_compile.compile(str(py), doraise=True)
 
     sys.path.insert(0, str(ROOT))

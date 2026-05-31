@@ -21,6 +21,10 @@ runtime/
 .orchestrator_snapshots/
 *.log
 
+# Test fixtures (intentionally broken)
+tests/fixtures/broken_python_syntax/
+tests/fixtures/broken_node_syntax/
+
 # IDE
 .vscode/
 .idea/

@@ -1,15 +1,17 @@
 """Skill wrapper for browser-based external AI asking."""
 
 from pathlib import Path
+
 from backend.skills.base import Skill, SkillResult, RiskLevel
 from backend.skills.desktop_visual.desktop_visual_skill import DesktopVisualSkill
+from backend.security.secret_scanner import SecretScanner
 from .chatgpt_web_adapter import ChatGPTWebAdapter
 from .claude_web_adapter import ClaudeWebAdapter
 from .doubao_web_adapter import DoubaoWebAdapter
 from .gemini_web_adapter import GeminiWebAdapter
 from .kimi_web_adapter import KimiWebAdapter
 from .evidence_writer import WebAIEvidenceWriter
-from backend.security.secret_scanner import SecretScanner
+from .answer_quality_check import AnswerQualityChecker
 
 ADAPTERS = {
     "chatgpt": ChatGPTWebAdapter,
@@ -45,6 +47,7 @@ class WebAISkill(Skill):
     def __init__(self):
         self.evidence_writer = WebAIEvidenceWriter()
         self.secret_scanner = SecretScanner()
+        self.quality_checker = AnswerQualityChecker()
 
     async def can_handle(self, task: dict, state: dict) -> bool:
         return "web ai" in task.get("description", "").lower()
@@ -69,6 +72,25 @@ class WebAISkill(Skill):
         answers, evidence = [], []
         try:
             response = await adapter.ask(prompt, context.get("attachments"))
+            result_text = response.answer
+            # Answer quality check
+            quality_check_meta = self._check_answer_quality(response)
+            if not quality_check_meta["passed"]:
+                return SkillResult(
+                    skill=self.name,
+                    success=False,
+                    result=result_text,
+                    error=f"Answer quality check failed: {quality_check_meta['reason']}",
+                    evidence=response.evidence_files,
+                    needs_follow_up=True,
+                    suggested_next_action="retry_or_escalate",
+                    metadata={
+                        "provider": provider,
+                        "quality_check": quality_check_meta,
+                        "redaction": redaction_meta,
+                    },
+                )
+
             if response.answer:
                 answers.append(response.answer)
             max_followups = int(context.get("max_followups", 1))
@@ -100,9 +122,9 @@ class WebAISkill(Skill):
             except Exception:
                 pass
             return SkillResult(
-                self.name,
-                bool(answers) and not response.needs_login,
-                "\n\n--- FOLLOW UP ---\n\n".join(answers),
+                skill=self.name,
+                success=bool(answers) and not response.needs_login,
+                result="\n\n--- FOLLOW UP ---\n\n".join(answers),
                 evidence=evidence,
                 error=response.error,
                 needs_follow_up=response.needs_follow_up,
@@ -141,3 +163,13 @@ class WebAISkill(Skill):
                 suggested_next_action="fallback_to_desktop_visual",
                 metadata={"provider": provider, "fallback": "desktop_visual"},
             )
+
+    def _check_answer_quality(self, response) -> dict:
+        answer = response.answer or ""
+        if response.needs_login:
+            return {"passed": False, "reason": "Login required", "quality": "FAIL"}
+        quality = self.quality_checker.check(answer)
+        if not quality["reliable"]:
+            reasons = "; ".join(quality["issues"])
+            return {"passed": False, "reason": reasons, "quality": quality["quality"]}
+        return {"passed": True, "reason": "", "quality": "PASS"}

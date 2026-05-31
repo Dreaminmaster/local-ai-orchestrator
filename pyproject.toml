@@ -16,3 +16,15 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
+
+[tool.ruff]
+exclude = [
+    "tests/fixtures/",
+    "runtime/",
+]
+
+[tool.black]
+force-exclude = """
+tests/fixtures/
+| runtime/
+"""

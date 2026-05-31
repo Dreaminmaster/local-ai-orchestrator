@@ -5,6 +5,7 @@ import base64
 import os
 from pathlib import Path
 from .base import Skill, SkillResult, RiskLevel
+from backend.security.secret_scanner import SecretScanner
 
 VISUAL_REVIEW_PROMPT = """请从以下角度评价这个界面截图：
 1. 是否显得高级（高级感评分 1-10）
@@ -57,6 +58,9 @@ class VisualReviewSkill(Skill):
     description = "Evaluate visual design quality using vision-capable AI models"
     capabilities = ["evaluate_design", "compare_before_after", "suggest_improvements"]
     risk_level = RiskLevel.LOW
+
+    def __init__(self):
+        self.secret_scanner = SecretScanner()
 
     async def can_handle(self, task: dict, state: dict) -> bool:
         keywords = [
@@ -160,6 +164,12 @@ class VisualReviewSkill(Skill):
     ) -> str:
         import httpx
 
+        redaction = self.secret_scanner.redact(prompt)
+        prompt = redaction.redacted_text
+        _redaction_meta = self.secret_scanner.evidence_summary(
+            redaction
+        )  # reserved for future logging
+
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
@@ -195,6 +205,12 @@ class VisualReviewSkill(Skill):
     ) -> str:
         import httpx
 
+        redaction = self.secret_scanner.redact(prompt)
+        prompt = redaction.redacted_text
+
+        _redaction_meta = self.secret_scanner.evidence_summary(
+            redaction
+        )  # reserved for future logging
         image_b64 = self._encode_image(image_path)
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
         payload = {
