@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 cd "$(dirname "$0")"
+export PLAYWRIGHT_BROWSERS_PATH="$(pwd)/.playwright-browsers"
 echo "🧠 Local AI Orchestrator - 启动项目"
 echo ""
 if [ ! -d "venv" ]; then

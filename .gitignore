@@ -19,6 +19,7 @@ storage/*.db
 evidence/
 runtime/
 .orchestrator_snapshots/
+.playwright-browsers/
 *.log
 
 # Test fixtures (intentionally broken)

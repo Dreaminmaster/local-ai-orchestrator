@@ -1,5 +1,6 @@
 #!/bin/bash
 cd "$(dirname "$0")"
+export PLAYWRIGHT_BROWSERS_PATH="$(pwd)/.playwright-browsers"
 echo "🧠 Local AI Orchestrator - 初始化 ChatGPT 登录"
 echo "浏览器将打开 ChatGPT 网页，请手动登录。"
 echo "登录完成后回到此窗口。"

@@ -1,12 +1,19 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-echo Local AI Orchestrator - 安装环境
-if not exist "scripts\local_setup_windows.ps1" (
-  echo 找不到 scripts\local_setup_windows.ps1
+echo Local AI Orchestrator - 安装环境 (便携模式)
+echo 当前目录: %cd%
+echo.
+set PLAYWRIGHT_BROWSERS_PATH=%cd%\.playwright-browsers
+echo -- 检查当前状态 --
+python scripts\doctor.py
+echo.
+set /p CONFIRM=是否补装缺失项？[y/N] 
+if /i not "%CONFIRM%"=="y" (
+  echo 跳过安装。
   pause
-  exit /b 1
+  exit /b 0
 )
-powershell -ExecutionPolicy Bypass -File scripts\local_setup_windows.ps1
-echo 安装完成。下一步请双击 2_启动项目.bat
+python scripts\install_missing.py
+echo.
 pause
