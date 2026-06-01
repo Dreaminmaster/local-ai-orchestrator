@@ -1,6 +1,14 @@
 # 🧠 Local AI Self-Supervised Orchestrator
 
+> 📖 不熟悉命令行？请看 → [QUICK_START.md](QUICK_START.md)
+
 > 本地 AI 自监督总控系统 — 让能力有限的本地模型学会借助更强工具、外部 AI 和电脑环境来完成复杂任务。
+
+**macOS 三步启动：** 双击 `1_安装环境.command` → `3_运行体检.command` → `2_启动项目.command`
+
+**Windows 三步启动：** 双击 `1_安装环境.bat` → `3_运行体检.bat` → `2_启动项目.bat`
+
+**图形启动器：** 双击 `打开启动器.command`(Mac) 或 `打开启动器.bat`(Win)，或在终端执行 `python launcher.py`
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
