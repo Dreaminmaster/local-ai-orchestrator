@@ -185,6 +185,17 @@ body {
 .ai-profile-dot.available { background: var(--success); }
 .ai-profile-dot.unavailable { background: var(--text-muted); }
 
+.ai-profile-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    font-size: 10px;
+}
+
 /* Skills Grid */
 .skills-grid {
     display: flex;

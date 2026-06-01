@@ -1,50 +1,77 @@
 #!/usr/bin/env python3
-"""Retry main Web AI providers and record results."""
+"""Retry Web AI tests for main providers only: ChatGPT and Claude."""
 
-import asyncio
+from __future__ import annotations
+
 import json
+import subprocess
+import sys
 from datetime import datetime
 from pathlib import Path
 
-from backend.skills.external_ai_web.web_ai_skill import WebAISkill
-
 ROOT = Path(__file__).resolve().parents[1]
 REPORT = ROOT / "runtime/test_reports/web_ai/main_providers_retry.json"
-PROVIDERS = ["claude", "chatgpt"]
+PROVIDERS = {
+    "chatgpt": ROOT / "scripts/test_web_ai_chatgpt.py",
+    "claude": ROOT / "scripts/test_web_ai_claude.py",
+}
 
 
-async def test(provider):
-    result = await WebAISkill().execute(
-        "Say hello in one short sentence.",
-        {"provider": provider, "headless": False, "max_followups": 0},
-    )
-    data = result.to_dict()
-    return {
-        "provider": provider,
-        "success": result.success,
-        "answer_preview": data.get("result", "")[:200],
-        "error": data.get("error", "")[:200],
-        "evidence_saved": bool(result.evidence),
-        "tested_at": datetime.now().isoformat(),
-    }
+def load_report(provider: str) -> dict:
+    path = ROOT / "runtime/test_reports/web_ai" / f"{provider}.json"
+    if not path.exists():
+        return {"provider": provider, "status": "not_run"}
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
-async def main():
-    results = []
-    for p in PROVIDERS:
-        r = await test(p)
-        results.append(r)
-        print(r["provider"], "PASS" if r["success"] else "FAIL")
-    REPORT.parent.mkdir(parents=True, exist_ok=True)
-    REPORT.write_text(
-        json.dumps(
-            {"created_at": datetime.now().isoformat(), "results": results},
-            ensure_ascii=False,
-            indent=2,
+def classify(data: dict) -> str:
+    quality = (data.get("answer_quality") or {}).get("quality")
+    if data.get("success") and quality == "PASS":
+        return "PASS"
+    if data.get("login_detection") and (
+        data.get("send_prompt") or data.get("extract_answer") or data.get("evidence_saved")
+    ):
+        return "PARTIAL"
+    return "FAIL"
+
+
+def main() -> int:
+    results = {}
+    for provider, script in PROVIDERS.items():
+        proc = subprocess.run(
+            [sys.executable, str(script), "--debug"],
+            cwd=str(ROOT),
+            text=True,
+            capture_output=True,
+            timeout=240,
+        )
+        data = load_report(provider)
+        data["retry_returncode"] = proc.returncode
+        data["retry_stdout_tail"] = proc.stdout[-4000:]
+        data["retry_stderr_tail"] = proc.stderr[-4000:]
+        data["retry_status"] = classify(data)
+        results[provider] = data
+
+    goals = {
+        "chatgpt_at_least_partial": results["chatgpt"]["retry_status"]
+        in ("PASS", "PARTIAL"),
+        "claude_evidence_saved": bool(results["claude"].get("evidence_saved")),
+        "claude_not_body_sidebar": (
+            results["claude"].get("used_selector")
+            and results["claude"].get("used_selector") != "body_fallback"
         ),
-        encoding="utf-8",
-    )
+    }
+    output = {
+        "created_at": datetime.now().isoformat(),
+        "results": results,
+        "goals": goals,
+        "pass": all(goals.values()),
+    }
+    REPORT.parent.mkdir(parents=True, exist_ok=True)
+    REPORT.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(json.dumps(output, ensure_ascii=False, indent=2))
+    return 0 if output["pass"] else 1
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(main())

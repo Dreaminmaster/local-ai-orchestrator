@@ -11,6 +11,7 @@ Project dependencies (can be installed by install_missing.py):
 from __future__ import annotations
 
 import os
+import json
 import shutil
 import socket
 import subprocess
@@ -23,11 +24,149 @@ IS_WIN = sys.platform == "win32"
 results = []
 
 
-def add(label, ok, category, fix=""):
-    results.append({"label": label, "ok": ok, "category": category, "fix": fix})
+def add(label, ok, category, fix="", details=None):
+    results.append(
+        {"label": label, "ok": ok, "category": category, "fix": fix, "details": details or {}}
+    )
     icon = "✅" if ok else "❌"
     suffix = f" → {fix}" if fix else ""
     print(f"  {icon} [{category}] {label}{suffix}")
+    for key, value in (details or {}).items():
+        print(f"      {key}: {value}")
+
+
+def check_lmstudio() -> dict:
+    urls = [
+        "http://127.0.0.1:1234/v1/models",
+        "http://localhost:1234/v1/models",
+    ]
+    last_result = {
+        "reachable": False,
+        "checked_url": "",
+        "status_code": "",
+        "error_message": "",
+    }
+
+    import urllib.error
+    import urllib.request
+
+    for url in urls:
+        result = {
+            "reachable": False,
+            "checked_url": url,
+            "status_code": "",
+            "error_message": "",
+        }
+
+        try:
+            with urllib.request.urlopen(url, timeout=3) as response:
+                status_code = getattr(response, "status", response.getcode())
+                body = response.read()
+            result["status_code"] = status_code
+            if status_code == 200:
+                result["reachable"] = True
+                try:
+                    json.loads(body.decode("utf-8") or "{}")
+                    result["body_check"] = "json_ok"
+                except Exception as exc:
+                    result["body_check"] = "json_failed"
+                    result["error_message"] = f"API body check failed: {exc}"
+                return result
+        except Exception as get_exc:
+            result["error_message"] = f"GET failed: {get_exc}"
+
+        try:
+            req = urllib.request.Request(url, method="HEAD")
+            with urllib.request.urlopen(req, timeout=3) as response:
+                status_code = getattr(response, "status", response.getcode())
+            result["status_code"] = status_code
+            if status_code == 200:
+                result["reachable"] = True
+                result["error_message"] = (
+                    "LM Studio port reachable, but API body check failed"
+                    if result["error_message"]
+                    else ""
+                )
+                return result
+        except urllib.error.HTTPError as head_exc:
+            result["status_code"] = head_exc.code
+            result["error_message"] = (
+                f"{result['error_message']}; HEAD failed: {head_exc}"
+                if result["error_message"]
+                else f"HEAD failed: {head_exc}"
+            )
+        except Exception as head_exc:
+            result["error_message"] = (
+                f"{result['error_message']}; HEAD failed: {head_exc}"
+                if result["error_message"]
+                else f"HEAD failed: {head_exc}"
+            )
+
+        if shutil.which("curl"):
+            try:
+                curl = subprocess.run(
+                    [
+                        "curl",
+                        "-I",
+                        "-s",
+                        "-o",
+                        "/dev/null",
+                        "-w",
+                        "%{http_code}",
+                        url,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
+                )
+                curl_status = int((curl.stdout or "0").strip() or "0")
+                result["status_code"] = result["status_code"] or curl_status
+                if curl_status == 200:
+                    result["reachable"] = True
+                    result["body_check"] = "curl_head_ok"
+                    result["error_message"] = (
+                        "LM Studio port reachable, but API body check failed"
+                    )
+                    return result
+                if curl.stderr.strip():
+                    result["error_message"] = (
+                        f"{result['error_message']}; curl HEAD failed: {curl.stderr.strip()}"
+                        if result["error_message"]
+                        else f"curl HEAD failed: {curl.stderr.strip()}"
+                    )
+            except Exception as curl_exc:
+                result["error_message"] = (
+                    f"{result['error_message']}; curl HEAD failed: {curl_exc}"
+                    if result["error_message"]
+                    else f"curl HEAD failed: {curl_exc}"
+                )
+
+        if shutil.which("lsof"):
+            try:
+                lsof = subprocess.run(
+                    ["lsof", "-nP", "-iTCP:1234", "-sTCP:LISTEN"],
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
+                )
+                if lsof.returncode == 0 and "127.0.0.1:1234" in lsof.stdout:
+                    result["reachable"] = True
+                    result["status_code"] = result["status_code"] or "port_listening"
+                    result["body_check"] = "port_listening"
+                    result["error_message"] = (
+                        "LM Studio port reachable, but API body check failed"
+                    )
+                    return result
+            except Exception as lsof_exc:
+                result["error_message"] = (
+                    f"{result['error_message']}; lsof check failed: {lsof_exc}"
+                    if result["error_message"]
+                    else f"lsof check failed: {lsof_exc}"
+                )
+
+        last_result = result
+
+    return last_result
 
 
 print("🧠 Local AI Orchestrator — Doctor")
@@ -52,19 +191,14 @@ git_ok = shutil.which("git") is not None
 add("Git", git_ok, "system", "Install from git-scm.com" if not git_ok else "")
 
 # LM Studio
-lm_ok = False
-try:
-    import urllib.request
-
-    urllib.request.urlopen("http://localhost:1234/v1/models", timeout=3)
-    lm_ok = True
-except Exception:
-    pass
+lm_status = check_lmstudio()
+lm_ok = bool(lm_status["reachable"])
 add(
     "LM Studio (port 1234)",
     lm_ok,
     "system",
     "Open LM Studio → Developer → Start Server" if not lm_ok else "",
+    details=lm_status,
 )
 
 # Ollama

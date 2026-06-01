@@ -1,10 +1,10 @@
 class FailureTaxonomy:
     KEYWORDS = {
         "json_parse_failed": ["json parse", "failed to parse json", "invalid json"],
+        "external_ai_needed": ["escalate", "external ai needed", "需要外部 ai"],
         "local_model_uncertain": ["uncertain", "不确定", "无法判断"],
         "context_overflow": ["context", "too long", "maximum context", "上下文"],
         "tool_result_too_long": ["result too long", "output too long", "日志太长"],
-        "external_ai_needed": ["escalate", "external ai needed", "需要外部 ai"],
         "goal_unclear": ["目标不清", "unclear goal", "ambiguous", "clarify"],
         "authorization_missing": [
             "not granted",

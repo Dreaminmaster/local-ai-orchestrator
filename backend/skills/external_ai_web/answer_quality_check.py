@@ -15,7 +15,15 @@ LOW_QUALITY_PATTERNS = {
         "注册",
         "继续使用",
     ],
-    "captcha": ["captcha", "verify", "challenge", "prove you", "人类", "验证"],
+    "captcha": [
+        "captcha",
+        "verify you are human",
+        "human verification",
+        "security challenge",
+        "prove you are human",
+        "人机验证",
+        "请验证你是人类",
+    ],
     "error_page": [
         "something went wrong",
         "try again",
@@ -68,7 +76,7 @@ class AnswerQualityChecker:
 
         lower = answer.lower()
         for category, patterns in LOW_QUALITY_PATTERNS.items():
-            if any(p in lower for p in patterns):
+            if any(p and p in lower for p in patterns):
                 result["issues"].append(category)
 
         if result["issues"]:

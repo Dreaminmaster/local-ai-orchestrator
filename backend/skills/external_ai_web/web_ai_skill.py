@@ -16,7 +16,6 @@ from .answer_quality_check import AnswerQualityChecker
 ADAPTERS = {
     "chatgpt": ChatGPTWebAdapter,
     "claude": ClaudeWebAdapter,
-    "claude_web": ClaudeWebAdapter,
     "doubao": DoubaoWebAdapter,
     "gemini": GeminiWebAdapter,
     "kimi": KimiWebAdapter,
@@ -24,10 +23,16 @@ ADAPTERS = {
 PROFILE_NAMES = {
     "chatgpt": "chatgpt",
     "claude": "claude",
-    "claude_web": "claude",
     "doubao": "doubao",
     "gemini": "gemini",
     "kimi": "kimi",
+}
+
+PROVIDER_ALIASES = {
+    "claude web": "claude",
+    "claude_web": "claude",
+    "chatgpt web": "chatgpt",
+    "chatgpt_web": "chatgpt",
 }
 
 
@@ -58,6 +63,7 @@ class WebAISkill(Skill):
         provider = (
             context.get("provider") or context.get("target") or "chatgpt"
         ).lower()
+        provider = PROVIDER_ALIASES.get(provider, provider)
         prompt = context.get("question") or context.get("prompt") or instruction
         redaction = self.secret_scanner.redact(prompt)
         prompt = redaction.redacted_text
@@ -70,6 +76,7 @@ class WebAISkill(Skill):
         adapter = adapter_cls(
             profile_name=PROFILE_NAMES.get(provider, provider),
             headless=context.get("headless", False),
+            debug=context.get("debug", False),
         )
         answers, evidence = [], []
         try:
@@ -77,18 +84,56 @@ class WebAISkill(Skill):
             result_text = response.answer
             # Answer quality check
             quality_check_meta = self._check_answer_quality(response)
+            run_metadata = self._run_metadata(
+                provider, response, quality_check_meta, redaction_meta
+            )
+            run_evidence = await self.evidence_writer.save_run(
+                provider,
+                prompt,
+                result_text,
+                page=getattr(adapter, "page", None),
+                metadata=run_metadata,
+            )
+            evidence.append(run_evidence)
+            if context.get("debug"):
+                try:
+                    debug_dir = Path(run_evidence)
+                    await adapter.page.screenshot(
+                        path=str(debug_dir / "screenshot_after_answer.png"),
+                        full_page=True,
+                    )
+                    (debug_dir / "candidate_selectors.json").write_text(
+                        __import__("json").dumps(
+                            response.metadata.get("extract", {}).get(
+                                "candidate_selectors", []
+                            )
+                            if response.metadata
+                            else [],
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                        encoding="utf-8",
+                    )
+                except Exception:
+                    pass
             if not quality_check_meta["passed"]:
                 return SkillResult(
                     skill=self.name,
                     success=False,
                     result=result_text,
                     error=f"Answer quality check failed: {quality_check_meta['reason']}",
-                    evidence=response.evidence_files,
+                    evidence=evidence + response.evidence_files,
                     needs_follow_up=True,
                     suggested_next_action="retry_or_escalate",
                     metadata={
                         "provider": provider,
                         "quality_check": quality_check_meta,
+                        "evidence_path": run_evidence,
+                        "used_selector": (response.metadata or {})
+                        .get("extract", {})
+                        .get("used_selector", ""),
+                        "send": (response.metadata or {}).get("send", {}),
+                        "extract": (response.metadata or {}).get("extract", {}),
                         "redaction": redaction_meta,
                     },
                 )
@@ -138,12 +183,43 @@ class WebAISkill(Skill):
                     "needs_login": response.needs_login,
                     "followups": max(0, len(answers) - 1),
                     "profile": PROFILE_NAMES.get(provider, provider),
+                    "evidence_path": run_evidence,
+                    "quality_check": quality_check_meta,
+                    "used_selector": (response.metadata or {})
+                    .get("extract", {})
+                    .get("used_selector", ""),
+                    "send": (response.metadata or {}).get("send", {}),
+                    "extract": (response.metadata or {}).get("extract", {}),
                     "redaction": redaction_meta,
                 },
             )
         except Exception as exc:
             # selector/page failure fallback: capture desktop screenshot to aid visual operation.
             fallback_evidence = []
+            evidence_path = ""
+            try:
+                evidence_path = await self.evidence_writer.save_run(
+                    provider,
+                    prompt,
+                    "",
+                    page=getattr(adapter, "page", None),
+                    metadata={
+                        "provider": provider,
+                        "profile_dir": str(
+                            Path("runtime/browser_profiles")
+                            / PROFILE_NAMES.get(provider, provider)
+                        ),
+                        "send_success": False,
+                        "extract_success": False,
+                        "answer_quality": "FAIL",
+                        "quality_issues": [str(exc)],
+                        "used_selector": "",
+                        "created_at": __import__("datetime").datetime.now().isoformat(),
+                    },
+                )
+                fallback_evidence.append(evidence_path)
+            except Exception:
+                pass
             try:
                 desktop_result = await DesktopVisualSkill().execute(
                     "observe current AI web page after selector failure",
@@ -163,7 +239,12 @@ class WebAISkill(Skill):
                 error=f"web_ai selector/page failure: {exc}",
                 needs_follow_up=True,
                 suggested_next_action="fallback_to_desktop_visual",
-                metadata={"provider": provider, "fallback": "desktop_visual"},
+                metadata={
+                    "provider": provider,
+                    "fallback": "desktop_visual",
+                    "evidence_path": evidence_path,
+                    "failure_stage": "selector_send_or_page",
+                },
             )
 
     def _check_answer_quality(self, response) -> dict:
@@ -171,7 +252,34 @@ class WebAISkill(Skill):
         if response.needs_login:
             return {"passed": False, "reason": "Login required", "quality": "FAIL"}
         quality = self.quality_checker.check(answer)
+        if response.metadata and response.metadata.get("extract", {}).get("body_fallback"):
+            quality["quality"] = "PARTIAL"
+            quality["reliable"] = False
+            if "body_fallback" not in quality["issues"]:
+                quality["issues"].append("body_fallback")
         if not quality["reliable"]:
             reasons = "; ".join(quality["issues"])
             return {"passed": False, "reason": reasons, "quality": quality["quality"]}
         return {"passed": True, "reason": "", "quality": "PASS"}
+
+    def _run_metadata(self, provider, response, quality_check_meta, redaction_meta):
+        profile = PROFILE_NAMES.get(provider, provider)
+        extract = (response.metadata or {}).get("extract", {})
+        send = (response.metadata or {}).get("send", {})
+        return {
+            "provider": provider,
+            "profile_dir": str(Path("runtime/browser_profiles") / profile),
+            "send_success": bool(send.get("send_success")),
+            "extract_success": bool(response.answer),
+            "answer_quality": quality_check_meta.get("quality"),
+            "quality_issues": [quality_check_meta.get("reason")]
+            if quality_check_meta.get("reason")
+            else [],
+            "used_selector": extract.get("used_selector", ""),
+            "body_fallback": extract.get("body_fallback", False),
+            "error_reason": extract.get("error_reason", ""),
+            "send": send,
+            "extract": extract,
+            "redaction": redaction_meta,
+            "created_at": __import__("datetime").datetime.now().isoformat(),
+        }

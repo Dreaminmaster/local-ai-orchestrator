@@ -127,7 +127,7 @@ class Reporter:
             "- 已接入 ContextWindowManager / EvidenceRetriever / ToolResultSummarizer / StepState / JSONRepairParser。",
             "",
             "## 外部 AI 求助",
-            "- 见证据中 external_ai / web_ai / autonomous_action 条目。",
+            self._external_ai_summary_line(steps, evidence),
             "",
             "## 标准授权确认历史",
             "- 见证据中 confirmation / user_decision / permission 相关条目。",
@@ -145,6 +145,14 @@ class Reporter:
                 f"- [{ev.get('type', 'unknown')}] {ev.get('supports', ev.get('content', ''))}"
             )
         return "\n".join(lines)
+
+    def _external_ai_summary_line(self, steps: list[dict], evidence: list[dict]) -> str:
+        payload = json.dumps({"steps": steps, "evidence": evidence}, ensure_ascii=False)
+        if "Claude Web" in payload or '"provider": "claude"' in payload or "provider': 'claude'" in payload:
+            return "- 使用 Claude Web 外部求助，并将回答与证据文件纳入后续判断。"
+        if "ChatGPT Web" in payload or '"provider": "chatgpt"' in payload:
+            return "- 使用 ChatGPT Web 外部求助，并将回答与证据文件纳入后续判断。"
+        return "- 见证据中 external_ai / web_ai / autonomous_action 条目。"
 
     def _fallback_report(
         self, task: dict, steps: list[dict], evidence: list[dict]

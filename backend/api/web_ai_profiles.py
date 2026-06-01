@@ -25,6 +25,16 @@ def _test_report_path(provider: str) -> Path:
     return TEST_REPORT_DIR / f"{provider}.json"
 
 
+def _recommendation(provider: str, test_status: str) -> str:
+    if provider == "claude" and test_status == "PASS":
+        return "推荐使用"
+    if provider == "chatgpt" and test_status == "PARTIAL":
+        return "可用但不稳定"
+    if test_status == "FAIL":
+        return "需要重新测试"
+    return ""
+
+
 @router.get("/web-ai/profiles/status")
 async def get_profile_status():
     status = _load_status()
@@ -66,6 +76,7 @@ async def get_profile_status():
             "has_profile_dir": has_profile,
             "test_status": test_status,
             "test_summary": test_summary,
+            "recommendation_label": _recommendation(provider, test_status),
             "last_initialized": provider_status.get("initialized_at"),
         }
     return {"profiles": result}

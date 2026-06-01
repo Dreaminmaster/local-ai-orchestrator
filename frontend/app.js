@@ -765,10 +765,18 @@ async function loadWebAiProfiles() {
       const testedLabel = p.test_summary?.created_at
         ? new Date(p.test_summary.created_at).toLocaleDateString()
         : "—";
+      const recommendation = p.recommendation_label || (
+        provider === "claude" && p.test_status === "PASS"
+          ? "推荐使用"
+          : provider === "chatgpt" && p.test_status === "PARTIAL"
+          ? "可用但不稳定"
+          : p.test_status === "FAIL"
+          ? "需要重新测试"
+          : "");
       html += `<div class="ai-profile-item" style="flex-direction:column;align-items:flex-start;gap:2px;">
         <div class="ai-profile-dot ${dotClass}"></div>
-        <span><strong>${escapeHtml(provider)}</strong></span>
-        <small>${escapeHtml(p.test_status)} · logged_in:${p.logged_in} · tested:${testedLabel}${provider === "claude" ? " ⭐" : ""}</small>
+        <span><strong>${escapeHtml(provider)}</strong>${recommendation ? ` <span class="ai-profile-badge">${escapeHtml(recommendation)}</span>` : ""}</span>
+        <small>${escapeHtml(p.test_status)} · logged_in:${p.logged_in} · tested:${testedLabel}</small>
         <div style="display:flex;gap:4px;margin-top:2px;">
           <button class="btn-secondary" onclick="initWebAiProfile('${provider}')" style="font-size:10px;padding:2px 6px;">Init</button>
           <button class="btn-secondary" onclick="testWebAiProfile('${provider}')" style="font-size:10px;padding:2px 6px;">Test</button>

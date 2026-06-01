@@ -46,7 +46,7 @@ class BaseWebAIAdapter(ABC):
     async def wait_for_answer_complete(self, timeout: int = 180) -> bool: ...
 
     @abstractmethod
-    async def extract_latest_answer(self) -> str: ...
+    async def extract_latest_answer(self, prompt: str = "") -> str: ...
 
     async def ask(
         self, prompt: str, attachments: list[str] | None = None
@@ -62,9 +62,19 @@ class BaseWebAIAdapter(ABC):
             return WebAIResponse(
                 self.provider_name, False, "", [], evidence, "login required", True
             )
-        await self.send_prompt(prompt, attachments)
+        send_meta = await self.send_prompt(prompt, attachments)
         complete = await self.wait_for_answer_complete()
-        answer = await self.extract_latest_answer() if complete else ""
+        answer = await self.extract_latest_answer(prompt) if complete else ""
+        extract_meta = {
+            "complete": complete,
+            "used_selector": getattr(getattr(self, "extractor", None), "used_selector", ""),
+            "body_fallback": getattr(getattr(self, "extractor", None), "used_body_fallback", False),
+            "raw_body_fallback": getattr(getattr(self, "extractor", None), "raw_body_fallback", ""),
+            "error_reason": getattr(getattr(self, "extractor", None), "error_reason", ""),
+            "candidate_selectors": getattr(
+                getattr(self, "extractor", None), "candidate_selectors", []
+            ),
+        }
         return WebAIResponse(
             provider=self.provider_name,
             success=bool(answer),
@@ -75,5 +85,9 @@ class BaseWebAIAdapter(ABC):
             ],
             evidence_files=[],
             needs_follow_up=len(answer.strip()) < 80,
-            metadata={"complete": complete},
+            metadata={
+                "complete": complete,
+                "send": send_meta or {},
+                "extract": extract_meta,
+            },
         )
