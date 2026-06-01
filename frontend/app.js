@@ -768,7 +768,7 @@ async function loadWebAiProfiles() {
       html += `<div class="ai-profile-item" style="flex-direction:column;align-items:flex-start;gap:2px;">
         <div class="ai-profile-dot ${dotClass}"></div>
         <span><strong>${escapeHtml(provider)}</strong></span>
-        <small>${escapeHtml(p.test_status)} · logged_in:${p.logged_in} · tested:${testedLabel}</small>
+        <small>${escapeHtml(p.test_status)} · logged_in:${p.logged_in} · tested:${testedLabel}${provider === "claude" ? " ⭐" : ""}</small>
         <div style="display:flex;gap:4px;margin-top:2px;">
           <button class="btn-secondary" onclick="initWebAiProfile('${provider}')" style="font-size:10px;padding:2px 6px;">Init</button>
           <button class="btn-secondary" onclick="testWebAiProfile('${provider}')" style="font-size:10px;padding:2px 6px;">Test</button>

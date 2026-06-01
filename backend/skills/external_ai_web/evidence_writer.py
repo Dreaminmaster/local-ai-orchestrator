@@ -14,7 +14,9 @@ class WebAIEvidenceWriter:
     ) -> str:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe = re.sub(r"[^a-zA-Z0-9_-]+", "_", provider.lower())
-        path = self.root / f"{safe}_{ts}.json"
+        provider_dir = self.root / safe
+        provider_dir.mkdir(parents=True, exist_ok=True)
+        path = provider_dir / f"{ts}.json"
         path.write_text(
             json.dumps(
                 {

@@ -8,6 +8,7 @@ SELECTORS = {
         "input": "div[contenteditable='true'], textarea",
         "send": "button[aria-label*='Send'], button:has-text('Send')",
         "messages": "div[data-testid*='message'], .font-claude-message",
+        "body_marker": "claude",
     },
     "gemini": {
         "input": "rich-textarea div[contenteditable='true'], textarea",
@@ -18,6 +19,12 @@ SELECTORS = {
         "input": "textarea, [contenteditable='true']",
         "send": "button",
         "messages": ".markdown, .message",
+    },
+    "claude_web": {
+        "input": "div[contenteditable='true'], textarea",
+        "send": "button[aria-label*='Send'], button:has-text('Send')",
+        "messages": "div[data-testid*='message'], .font-claude-message",
+        "body_marker": "claude",
     },
     "doubao": {
         "input": "textarea, [contenteditable='true']",

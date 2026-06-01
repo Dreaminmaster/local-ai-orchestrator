@@ -13,16 +13,20 @@ class ExternalAIEscalationRouter:
             "json_parse_failed",
             "local_model_uncertain",
             "context_overflow",
+            "external_ai_needed",
         ]
 
     def choose_target(
         self, reason: str, available_external_ai: list[str]
     ) -> str | None:
-        preferred = {
-            "visual_judgment_required": ["ChatGPT", "Gemini", "Claude"],
-            "code_repair_failed": ["Codex", "Claude", "ChatGPT"],
+        reasons = {
+            "visual_judgment_required": ["ChatGPT", "Gemini", "Claude Web"],
+            "code_repair_failed": ["Codex", "Claude Web", "ChatGPT"],
             "fresh_information_required": ["Perplexity", "ChatGPT", "Gemini"],
-        }.get(reason, available_external_ai)
+        }
+        preferred = reasons.get(
+            reason, ["Claude Web", "ChatGPT", "Gemini", "Kimi", "Codex"]
+        )
         for t in preferred:
             if t in available_external_ai:
                 return t

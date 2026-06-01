@@ -7,7 +7,11 @@ class AnswerExtractor:
         last = ""
         stable = 0
         for _ in range(timeout):
-            text = await page.locator("body").inner_text(timeout=5000)
+            try:
+                text = await page.locator("body").inner_text(timeout=5000)
+            except Exception:
+                await asyncio.sleep(2)
+                continue
             if text == last:
                 stable += 1
                 if stable >= 3:
@@ -20,8 +24,24 @@ class AnswerExtractor:
 
     async def latest(self, page, provider: str) -> str:
         sel = SELECTORS.get(provider, SELECTORS["chatgpt"])["messages"]
-        loc = page.locator(sel)
-        count = await loc.count()
-        if count:
-            return await loc.nth(count - 1).inner_text(timeout=10000)
-        return (await page.locator("body").inner_text(timeout=10000))[-4000:]
+        try:
+            loc = page.locator(sel)
+            count = await loc.count()
+            if count:
+                return await loc.nth(count - 1).inner_text(timeout=10000)
+        except Exception:
+            pass
+        # body_marker fallback: use marker text to locate last answer block
+        marker = SELECTORS.get(provider, {}).get("body_marker")
+        if marker:
+            try:
+                body = await page.locator("body").inner_text(timeout=10000)
+                idx = body.rfind(marker)
+                if idx > 0:
+                    return body[idx:]
+            except Exception:
+                pass
+        try:
+            return (await page.locator("body").inner_text(timeout=10000))[-4000:]
+        except Exception:
+            return ""

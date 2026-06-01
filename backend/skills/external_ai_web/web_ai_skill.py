@@ -16,6 +16,7 @@ from .answer_quality_check import AnswerQualityChecker
 ADAPTERS = {
     "chatgpt": ChatGPTWebAdapter,
     "claude": ClaudeWebAdapter,
+    "claude_web": ClaudeWebAdapter,
     "doubao": DoubaoWebAdapter,
     "gemini": GeminiWebAdapter,
     "kimi": KimiWebAdapter,
@@ -23,6 +24,7 @@ ADAPTERS = {
 PROFILE_NAMES = {
     "chatgpt": "chatgpt",
     "claude": "claude",
+    "claude_web": "claude",
     "doubao": "doubao",
     "gemini": "gemini",
     "kimi": "kimi",

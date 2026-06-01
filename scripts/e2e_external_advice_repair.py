@@ -86,7 +86,7 @@ async def main():
         },
     )
     applied = any(r.get("success") for r in file_apply)
-    assert applied, f"Expected patch to apply"
+    assert applied, "Expected patch to apply"
 
     # 4. After: rerun
     after = await run_shell(agent, ["python3", "main.py"], work)
