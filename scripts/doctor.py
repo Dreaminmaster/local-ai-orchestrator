@@ -31,7 +31,11 @@ def add(label, ok, category, fix=""):
 
 
 print("🧠 Local AI Orchestrator — Doctor")
-print(f"   项目目录: {ROOT}")
+print(f"   PROJECT_ROOT         = {ROOT}")
+expected_pw = ROOT / ".playwright-browsers"
+actual_pw_env = os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "(not set)")
+print(f"   PLAYWRIGHT_BROWSERS_PATH (env) = {actual_pw_env}")
+print(f"   PLAYWRIGHT_BROWSERS_PATH (expected) = {expected_pw}")
 print()
 
 # ── SYSTEM TOOLS ──
@@ -113,7 +117,10 @@ add(
 # Playwright
 expected_pw_path = str(ROOT / ".playwright-browsers")
 actual_pw_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "")
-pw_path_correct = (actual_pw_path and Path(actual_pw_path).resolve() == Path(expected_pw_path).resolve())
+pw_path_correct = (
+    actual_pw_path
+    and Path(actual_pw_path).resolve() == Path(expected_pw_path).resolve()
+)
 pw_dir = Path(expected_pw_path)
 pw_ok = False
 if pw_dir.exists() and any(pw_dir.glob("chromium-*")):
@@ -121,11 +128,12 @@ if pw_dir.exists() and any(pw_dir.glob("chromium-*")):
 else:
     try:
         import playwright  # noqa: F401
+
         pw_ok = True
     except ImportError:
         pw_ok = False
 add(
-    f"Playwright Chromium → .playwright-browsers/",
+    "Playwright Chromium → .playwright-browsers/",
     pw_ok and pw_path_correct,
     "project",
     (

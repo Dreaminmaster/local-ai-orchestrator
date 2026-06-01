@@ -16,24 +16,24 @@ Chromium 下载到项目根目录下的 `.playwright-browsers/`，不在系统 `
 
 ## 下载内容
 
-| 路径 | 说明 | 删除方式 |
-|---|---|---|
-| `venv/` | Python 虚拟环境 | `rm -rf venv` |
-| `.playwright-browsers/` | Playwright Chromium | 删除文件夹或运行清理脚本 |
-| `runtime/` | 运行数据（evidence / logs / test reports / browser profiles） | 删除文件夹或运行清理脚本 |
-| `.env` | 本地配置 | `rm .env` |
+| 路径                    | 说明                                                          | 删除方式                 |
+| ----------------------- | ------------------------------------------------------------- | ------------------------ |
+| `venv/`                 | Python 虚拟环境                                               | `rm -rf venv`            |
+| `.playwright-browsers/` | Playwright Chromium                                           | 删除文件夹或运行清理脚本 |
+| `runtime/`              | 运行数据（evidence / logs / test reports / browser profiles） | 删除文件夹或运行清理脚本 |
+| `.env`                  | 本地配置                                                      | `rm .env`                |
 
 ## 不会下载 / 保留在系统
 
-| 工具 | 位置 |
-|---|---|
-| Python | 系统安装路径 |
-| Git | 系统安装路径 |
-| LM Studio | ~/Applications 或系统路径 |
-| Ollama | 系统路径 |
-| Node.js | 系统安装路径 |
-| Codex CLI | 系统路径 |
-| Claude Code CLI | 系统路径 |
+| 工具            | 位置                      |
+| --------------- | ------------------------- |
+| Python          | 系统安装路径              |
+| Git             | 系统安装路径              |
+| LM Studio       | ~/Applications 或系统路径 |
+| Ollama          | 系统路径                  |
+| Node.js         | 系统安装路径              |
+| Codex CLI       | 系统路径                  |
+| Claude Code CLI | 系统路径                  |
 
 清理脚本禁止删除这些系统目录。
 
@@ -42,12 +42,14 @@ Chromium 下载到项目根目录下的 `.playwright-browsers/`，不在系统 `
 双击 `清理项目缓存.command` 或 `清理项目缓存.bat`
 
 默认删除：
+
 - .playwright-browsers/
 - runtime/
 - .pytest_cache/
-- __pycache__/
+- **pycache**/
 
 不删除：
+
 - venv（Python 虚拟环境）
 - .env（配置文件）
 - src/ backend/ frontend/（源码）
@@ -55,6 +57,7 @@ Chromium 下载到项目根目录下的 `.playwright-browsers/`，不在系统 `
 深度清理：脚本会单独询问是否删除 venv 和 .env。
 
 清理脚本禁止删除：
+
 - ~/Library/Caches/ms-playwright/
 - %LOCALAPPDATA%\ms-playwright\
 - 任何项目目录外的路径

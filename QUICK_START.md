@@ -58,11 +58,11 @@
 
 ## 常见问题
 
-| 问题 | 解决 |
-|---|---|
+| 问题                          | 解决                                                |
+| ----------------------------- | --------------------------------------------------- |
 | macOS 提示"无法打开 .command" | 双击 `修复macOS脚本权限.command`，或右键文件 → 打开 |
-| doctor 提示 LM Studio 没启动 | 打开 LM Studio → Developer → Start Server |
-| doctor 提示 Ollama 没启动 | 运行 `ollama serve`，然后 `ollama pull llama3` |
-| Playwright 报错 | 重新双击 `1_安装环境` |
-| 8422 端口被占用 | 关闭已有终端或重启电脑 |
-| 按钮点不了 / 窗口没反应 | 等上一次任务跑完，或在终端手动执行对应脚本 |
+| doctor 提示 LM Studio 没启动  | 打开 LM Studio → Developer → Start Server           |
+| doctor 提示 Ollama 没启动     | 运行 `ollama serve`，然后 `ollama pull llama3`      |
+| Playwright 报错               | 重新双击 `1_安装环境`                               |
+| 8422 端口被占用               | 关闭已有终端或重启电脑                              |
+| 按钮点不了 / 窗口没反应       | 等上一次任务跑完，或在终端手动执行对应脚本          |

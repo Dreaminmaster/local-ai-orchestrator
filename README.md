@@ -116,14 +116,14 @@ python scripts/doctor.py
 
 ### 常见错误
 
-| 错误 | 解决 |
-|---|---|
-| LM Studio 没开 | 打开 LM Studio，加载模型，确认端口 1234 |
-| Ollama 没开 | `ollama serve` 然后 `ollama pull llama3` |
-| Playwright 没装 | `playwright install chromium` |
-| 端口被占用 | 改 `.env` 中的 `PORT` 或用 `lsof -i :8422` 查看 |
-| .env 缺失 | `cp .env.example .env` 然后编辑 |
-| `pip` 报错 | 确认在 venv 中：`source venv/bin/activate` |
+| 错误            | 解决                                            |
+| --------------- | ----------------------------------------------- |
+| LM Studio 没开  | 打开 LM Studio，加载模型，确认端口 1234         |
+| Ollama 没开     | `ollama serve` 然后 `ollama pull llama3`        |
+| Playwright 没装 | `playwright install chromium`                   |
+| 端口被占用      | 改 `.env` 中的 `PORT` 或用 `lsof -i :8422` 查看 |
+| .env 缺失       | `cp .env.example .env` 然后编辑                 |
+| `pip` 报错      | 确认在 venv 中：`source venv/bin/activate`      |
 
 ### 传统安装方式
 
@@ -139,71 +139,75 @@ python -m backend.main
 ```
 
 # 访问 Web 控制台
+
 # 打开浏览器访问 http://localhost:8422
+
 ```
 
 ## 📁 项目结构
 
 ```
+
 local-ai-orchestrator/
 ├── backend/
-│   ├── main.py                  # FastAPI 入口
-│   ├── api/                     # API 路由
-│   │   ├── tasks.py             # 任务管理
-│   │   ├── skills.py            # 技能管理
-│   │   └── websocket.py         # WebSocket 实时通信
-│   ├── core/                    # 核心引擎
-│   │   ├── agent.py             # Agent 主循环
-│   │   ├── goal_interpreter.py  # 目标理解器
-│   │   ├── planner.py           # 任务规划器
-│   │   ├── capability_gap.py    # 能力缺口检测器
-│   │   ├── skill_router.py      # 技能路由器
-│   │   ├── supervisor.py        # 监督器
-│   │   ├── verifier.py          # 验证器
-│   │   ├── failure_handler.py   # 失败处理器
-│   │   └── reporter.py          # 报告生成器
-│   ├── llm/                     # LLM 提供者
-│   │   ├── base.py              # 基础接口
-│   │   ├── lmstudio.py          # LM Studio
-│   │   ├── ollama.py            # Ollama
-│   │   └── openai_compat.py     # OpenAI 兼容
-│   ├── skills/                  # 技能模块
-│   │   ├── base.py              # 技能基类
-│   │   ├── browser_skill.py     # 浏览器控制
-│   │   ├── desktop_skill.py     # 桌面控制
-│   │   ├── external_ai_skill.py # 外部 AI
-│   │   ├── file_skill.py        # 文件操作
-│   │   ├── shell_skill.py       # 终端命令
-│   │   ├── search_skill.py      # 搜索引擎
-│   │   ├── visual_review_skill.py # 视觉评审
-│   │   └── self_verify_skill.py # 自我校验
-│   ├── evidence/                # 证据系统
-│   │   └── board.py             # 证据板
-│   ├── memory/                  # 记忆系统
-│   │   ├── task_memory.py       # 任务记忆
-│   │   └── user_preferences.py  # 用户偏好
-│   ├── prompts/                 # 提示词模板
-│   │   ├── goal_interpreter.md
-│   │   ├── planner.md
-│   │   ├── capability_gap.md
-│   │   ├── verifier.md
-│   │   ├── visual_review.md
-│   │   ├── failure_handler.md
-│   │   └── reporter.md
-│   └── storage/                 # 数据存储
-│       └── database.py          # SQLite 管理
-├── frontend/                    # Web 前端
-│   ├── index.html               # 任务控制台
-│   ├── style.css                # 样式
-│   └── app.js                   # 前端逻辑
-├── plugins/                     # 自定义插件
-│   └── README.md
-├── docs/                        # 文档
-│   └── product_design.md
-├── .env.example                 # 配置模板
-├── requirements.txt             # Python 依赖
-├── pyproject.toml               # 项目元数据
+│ ├── main.py # FastAPI 入口
+│ ├── api/ # API 路由
+│ │ ├── tasks.py # 任务管理
+│ │ ├── skills.py # 技能管理
+│ │ └── websocket.py # WebSocket 实时通信
+│ ├── core/ # 核心引擎
+│ │ ├── agent.py # Agent 主循环
+│ │ ├── goal_interpreter.py # 目标理解器
+│ │ ├── planner.py # 任务规划器
+│ │ ├── capability_gap.py # 能力缺口检测器
+│ │ ├── skill_router.py # 技能路由器
+│ │ ├── supervisor.py # 监督器
+│ │ ├── verifier.py # 验证器
+│ │ ├── failure_handler.py # 失败处理器
+│ │ └── reporter.py # 报告生成器
+│ ├── llm/ # LLM 提供者
+│ │ ├── base.py # 基础接口
+│ │ ├── lmstudio.py # LM Studio
+│ │ ├── ollama.py # Ollama
+│ │ └── openai_compat.py # OpenAI 兼容
+│ ├── skills/ # 技能模块
+│ │ ├── base.py # 技能基类
+│ │ ├── browser_skill.py # 浏览器控制
+│ │ ├── desktop_skill.py # 桌面控制
+│ │ ├── external_ai_skill.py # 外部 AI
+│ │ ├── file_skill.py # 文件操作
+│ │ ├── shell_skill.py # 终端命令
+│ │ ├── search_skill.py # 搜索引擎
+│ │ ├── visual_review_skill.py # 视觉评审
+│ │ └── self_verify_skill.py # 自我校验
+│ ├── evidence/ # 证据系统
+│ │ └── board.py # 证据板
+│ ├── memory/ # 记忆系统
+│ │ ├── task_memory.py # 任务记忆
+│ │ └── user_preferences.py # 用户偏好
+│ ├── prompts/ # 提示词模板
+│ │ ├── goal_interpreter.md
+│ │ ├── planner.md
+│ │ ├── capability_gap.md
+│ │ ├── verifier.md
+│ │ ├── visual_review.md
+│ │ ├── failure_handler.md
+│ │ └── reporter.md
+│ └── storage/ # 数据存储
+│ └── database.py # SQLite 管理
+├── frontend/ # Web 前端
+│ ├── index.html # 任务控制台
+│ ├── style.css # 样式
+│ └── app.js # 前端逻辑
+├── plugins/ # 自定义插件
+│ └── README.md
+├── docs/ # 文档
+│ └── product_design.md
+├── .env.example # 配置模板
+├── requirements.txt # Python 依赖
+├── pyproject.toml # 项目元数据
 └── README.md
+
 ```
 
 ## 🎮 使用场景
@@ -211,34 +215,43 @@ local-ai-orchestrator/
 ### 场景 1：修网页设计
 
 ```
+
 用户：帮我把这个网页做得更高级，不要低端模板感，自己检查效果。
 
 系统自动执行：
+
 1. 启动项目 → 2. 截图当前页面 → 3. 发给视觉模型评审
-→ 4. 生成修改方案 → 5. 调 Codex 修改代码 → 6. 重新截图
-→ 7. 对比前后效果 → 8. 不达标继续修 → 9. 输出修改报告
+   → 4. 生成修改方案 → 5. 调 Codex 修改代码 → 6. 重新截图
+   → 7. 对比前后效果 → 8. 不达标继续修 → 9. 输出修改报告
+
 ```
 
 ### 场景 2：修代码项目
 
 ```
+
 用户：帮我把这个 GitHub 项目跑起来，报错自己解决。
 
 系统自动执行：
+
 1. 读取项目结构 → 2. 判断技术栈 → 3. 安装依赖
-→ 4. 运行项目 → 5. 捕获报错 → 6. 问 Codex 修复
-→ 7. 再运行 → 8. 截图验证 → 9. 输出修复记录
+   → 4. 运行项目 → 5. 捕获报错 → 6. 问 Codex 修复
+   → 7. 再运行 → 8. 截图验证 → 9. 输出修复记录
+
 ```
 
 ### 场景 3：研究复杂问题
 
 ```
+
 用户：帮我分析有哪些项目可以实现 AI 控制电脑，给我组合方案。
 
 系统自动执行：
+
 1. 搜索 GitHub → 2. 读取 README → 3. 问 Claude 分析架构
-→ 4. 问 ChatGPT 生成方案 → 5. 交叉比较 → 6. 输出最终方案
-```
+   → 4. 问 ChatGPT 生成方案 → 5. 交叉比较 → 6. 输出最终方案
+
+````
 
 ## ⚙️ 配置说明
 
@@ -262,7 +275,7 @@ OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 GOOGLE_API_KEY=...
 DEEPSEEK_API_KEY=...
-```
+````
 
 ## 🔒 安全设计
 
