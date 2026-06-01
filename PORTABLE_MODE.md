@@ -2,83 +2,67 @@
 
 项目设计为便携模式 — 所有下载内容在项目目录内，删除项目文件夹即可清理。
 
-## 项目下载了什么
+## Playwright 浏览器路径
 
-| 路径 | 说明 |
-|---|---|
-| `venv/` | Python 虚拟环境 |
-| `.playwright-browsers/` | Playwright Chromium 浏览器 |
-| `runtime/` | 运行数据（证据、日志、测试报告、浏览器 profile） |
-| `.env` | 配置文件 |
-
-## 不会下载 / 不会删除
-
-| 工具 | 说明 |
-|---|---|
-| Python | 系统工具，需单独安装 |
-| Git | 系统工具，需单独安装 |
-| LM Studio | 系统工具，需单独安装 |
-| Ollama | 系统工具，需单独安装 |
-| Node.js | 系统工具，需单独安装 |
-
-删除项目文件夹只会删除项目自身文件，不会影响系统。
-
-## 安装流程
-
-1. 双击 `1_安装环境.command` — 先运行 doctor 检查，显示缺失项
-2. 用户确认后，仅补装项目内缺失的依赖
-3. 不自动安装 Python / Git / LM Studio / Ollama
-
-## 安装了什么
+本项目使用项目内 Playwright 目录，不使用系统共享缓存：
 
 ```
-python3 scripts/doctor.py          # 检查当前状态
-python3 scripts/install_missing.py # 只安装项目依赖
+导出：PLAYWRIGHT_BROWSERS_PATH = .playwright-browsers/
 ```
 
-install_missing.py 只处理：
-- venv
-- pip requirements
-- Playwright Chromium（下载到 .playwright-browsers/）
-- .env
-- runtime 目录
+Chromium 下载到项目根目录下的 `.playwright-browsers/`，不在系统 `~/Library/Caches/` 或 `%LOCALAPPDATA%` 中。
+
+删除 `local-ai-orchestrator/` 文件夹即可删除本项目自己的 Playwright 浏览器、Web AI profile、runtime、测试报告和日志。
+
+## 下载内容
+
+| 路径 | 说明 | 删除方式 |
+|---|---|---|
+| `venv/` | Python 虚拟环境 | `rm -rf venv` |
+| `.playwright-browsers/` | Playwright Chromium | 删除文件夹或运行清理脚本 |
+| `runtime/` | 运行数据（evidence / logs / test reports / browser profiles） | 删除文件夹或运行清理脚本 |
+| `.env` | 本地配置 | `rm .env` |
+
+## 不会下载 / 保留在系统
+
+| 工具 | 位置 |
+|---|---|
+| Python | 系统安装路径 |
+| Git | 系统安装路径 |
+| LM Studio | ~/Applications 或系统路径 |
+| Ollama | 系统路径 |
+| Node.js | 系统安装路径 |
+| Codex CLI | 系统路径 |
+| Claude Code CLI | 系统路径 |
+
+清理脚本禁止删除这些系统目录。
 
 ## 清理
 
 双击 `清理项目缓存.command` 或 `清理项目缓存.bat`
 
 默认删除：
-- runtime/
 - .playwright-browsers/
+- runtime/
 - .pytest_cache/
 - __pycache__/
 
 不删除：
-- venv
-- .env
-- 源码
+- venv（Python 虚拟环境）
+- .env（配置文件）
+- src/ backend/ frontend/（源码）
 
-深度清理：脚本会询问是否删除 venv 和 .env。
+深度清理：脚本会单独询问是否删除 venv 和 .env。
 
-## Playwright 旧路径清理
-
-如果之前用默认路径安装过 Playwright Chromium：
-
-macOS：
-```bash
-rm -rf ~/Library/Caches/ms-playwright/
-```
-
-Windows：
-```powershell
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\ms-playwright"
-```
+清理脚本禁止删除：
+- ~/Library/Caches/ms-playwright/
+- %LOCALAPPDATA%\ms-playwright\
+- 任何项目目录外的路径
 
 ## 手动完全重置
 
 ```bash
-# macOS / Linux
-rm -rf venv .env runtime .playwright-browsers .pytest_cache
+rm -rf .playwright-browsers/ runtime/ .pytest_cache/
 find . -type d -name __pycache__ -prune -exec rm -rf {} +
-# 然后重新 双击 1_安装环境.command
+# 重新 double-click 1_安装环境
 ```

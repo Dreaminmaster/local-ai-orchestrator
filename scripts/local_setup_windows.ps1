@@ -1,6 +1,11 @@
-# Local AI Orchestrator — Windows Setup
-Write-Host "🧠 Local AI Orchestrator — Windows Setup" -ForegroundColor Cyan
-Write-Host "============================================="
+# Local AI Orchestrator — Windows Setup (Portable)
+$ProjectRoot = $PSScriptRoot
+$env:PLAYWRIGHT_BROWSERS_PATH = "$ProjectRoot\.playwright-browsers"
+
+Write-Host "🧠 Local AI Orchestrator — Windows Setup (Portable)" -ForegroundColor Cyan
+Write-Host "======================================================"
+Write-Host "  Playwright dir: $env:PLAYWRIGHT_BROWSERS_PATH"
+Write-Host ""
 
 # 1. Python check
 try {
@@ -12,36 +17,37 @@ try {
 }
 
 # 2. Create venv
-if (-not (Test-Path "venv")) {
+if (-not (Test-Path "$ProjectRoot\venv")) {
   Write-Host "📦 Creating virtual environment..."
-  python -m venv venv
+  python -m venv "$ProjectRoot\venv"
 }
 Write-Host "✅ venv ready"
 
 # 3. Install requirements
 Write-Host "📦 Installing Python dependencies..."
-.\venv\Scripts\pip install --upgrade pip -q
-.\venv\Scripts\pip install -r requirements.txt -q
+& "$ProjectRoot\venv\Scripts\pip" install --upgrade pip -q
+& "$ProjectRoot\venv\Scripts\pip" install -r "$ProjectRoot\requirements.txt" -q
 Write-Host "✅ requirements installed"
 
 # 4. Copy .env if missing
-if (-not (Test-Path ".env")) {
-  Copy-Item .env.example .env
+if (-not (Test-Path "$ProjectRoot\.env")) {
+  Copy-Item "$ProjectRoot\.env.example" "$ProjectRoot\.env"
   Write-Host "📝 .env created from .env.example"
 }
 Write-Host "✅ .env exists"
 
-# 5. Install Playwright chromium
-Write-Host "🌐 Checking Playwright..."
+# 5. Install Playwright chromium to project-local dir
+Write-Host "🌐 Installing Playwright Chromium to $env:PLAYWRIGHT_BROWSERS_PATH ..."
+New-Item -ItemType Directory -Force -Path "$env:PLAYWRIGHT_BROWSERS_PATH" | Out-Null
 try {
-  .\venv\Scripts\playwright install chromium 2>$null
-  Write-Host "✅ Playwright ready"
+  & "$ProjectRoot\venv\Scripts\playwright" install chromium 2>$null
+  Write-Host "✅ Playwright Chromium ready"
 } catch {
-  Write-Host "⚠️  Playwright install skipped (optional)"
+  Write-Host "⚠️  Playwright install skipped. Install manually: set PLAYWRIGHT_BROWSERS_PATH=.playwright-browsers && playwright install chromium"
 }
 
 # 6. Runtime dirs
-New-Item -ItemType Directory -Force -Path runtime/evidence, runtime/tasks, runtime/test_reports | Out-Null
+New-Item -ItemType Directory -Force -Path "$ProjectRoot\runtime\evidence", "$ProjectRoot\runtime\tasks", "$ProjectRoot\runtime\test_reports" | Out-Null
 Write-Host "✅ runtime directories ready"
 
 Write-Host ""

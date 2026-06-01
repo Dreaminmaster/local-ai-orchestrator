@@ -111,27 +111,26 @@ add(
 )
 
 # Playwright
-pw_browsers_path = os.environ.get(
-    "PLAYWRIGHT_BROWSERS_PATH", str(ROOT / ".playwright-browsers")
-)
-pw_dir = Path(pw_browsers_path)
+expected_pw_path = str(ROOT / ".playwright-browsers")
+actual_pw_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH", "")
+pw_path_correct = (actual_pw_path and Path(actual_pw_path).resolve() == Path(expected_pw_path).resolve())
+pw_dir = Path(expected_pw_path)
 pw_ok = False
 if pw_dir.exists() and any(pw_dir.glob("chromium-*")):
     pw_ok = True
 else:
     try:
         import playwright  # noqa: F401
-
-        pw_ok = True  # library installed, browser check later
+        pw_ok = True
     except ImportError:
         pw_ok = False
 add(
-    f"Playwright Chromium ({pw_dir})",
-    pw_ok,
+    f"Playwright Chromium → .playwright-browsers/",
+    pw_ok and pw_path_correct,
     "project",
     (
         "Run: PLAYWRIGHT_BROWSERS_PATH=.playwright-browsers playwright install chromium"
-        if not pw_ok
+        if not (pw_ok and pw_path_correct)
         else ""
     ),
 )

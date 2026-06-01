@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -eu
+cd "$(dirname "$0")"
+PROJECT_ROOT="$(pwd)"
+export PLAYWRIGHT_BROWSERS_PATH="$PROJECT_ROOT/.playwright-browsers"
 
-echo "🧠 Local AI Orchestrator — macOS/Linux Setup"
-echo "============================================="
+echo "🧠 Local AI Orchestrator — macOS/Linux Setup (Portable)"
+echo "=========================================================="
+echo "  Playwright dir: $PLAYWRIGHT_BROWSERS_PATH"
+echo ""
 
 # 1. Python check
 if ! command -v python3 &>/dev/null; then
@@ -12,34 +17,34 @@ fi
 echo "✅ python3 $(python3 --version)"
 
 # 2. Create venv
-if [ ! -d "venv" ]; then
+if [ ! -d "$PROJECT_ROOT/venv" ]; then
   echo "📦 Creating virtual environment..."
-  python3 -m venv venv
+  python3 -m venv "$PROJECT_ROOT/venv"
 fi
 echo "✅ venv ready"
 
 # 3. Install requirements
 echo "📦 Installing Python dependencies..."
-./venv/bin/pip install --upgrade pip -q
-./venv/bin/pip install -r requirements.txt -q
+"$PROJECT_ROOT/venv/bin/pip" install --upgrade pip -q
+"$PROJECT_ROOT/venv/bin/pip" install -r "$PROJECT_ROOT/requirements.txt" -q
 echo "✅ requirements installed"
 
 # 4. Copy .env if missing
-if [ ! -f ".env" ]; then
-  cp .env.example .env
+if [ ! -f "$PROJECT_ROOT/.env" ]; then
+  cp "$PROJECT_ROOT/.env.example" "$PROJECT_ROOT/.env"
   echo "📝 .env created from .env.example (edit to configure LM Studio/Ollama)"
 fi
 echo "✅ .env exists"
 
-# 5. Install Playwright chromium
-if ! ./venv/bin/python -c "from playwright.sync_api import sync_playwright; sync_playwright().__enter__().chromium.launch(); exit(0)" 2>/dev/null; then
-  echo "🌐 Installing Playwright chromium..."
-  ./venv/bin/playwright install chromium 2>/dev/null || echo "⚠️  Playwright install skipped (optional for Web AI)"
-fi
+# 5. Install Playwright chromium to project-local dir
+echo "🌐 Installing Playwright Chromium to $PLAYWRIGHT_BROWSERS_PATH ..."
+mkdir -p "$PLAYWRIGHT_BROWSERS_PATH"
+"$PROJECT_ROOT/venv/bin/playwright" install chromium 2>/dev/null || \
+  echo "⚠️  Playwright Chromium install skipped (optional for Web AI). Install manually: PLAYWRIGHT_BROWSERS_PATH=.playwright-browsers playwright install chromium"
 echo "✅ Playwright check done"
 
 # 6. Create runtime dirs
-mkdir -p runtime/evidence runtime/tasks runtime/test_reports
+mkdir -p "$PROJECT_ROOT/runtime/evidence" "$PROJECT_ROOT/runtime/tasks" "$PROJECT_ROOT/runtime/test_reports"
 echo "✅ runtime directories ready"
 
 echo ""
