@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -eu
-cd "$(dirname "$0")"
-PROJECT_ROOT="$(pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
 export PLAYWRIGHT_BROWSERS_PATH="$PROJECT_ROOT/.playwright-browsers"
 
 echo "🧠 Local AI Orchestrator — macOS/Linux Setup (Portable)"
 echo "=========================================================="
+echo "  Project root: $PROJECT_ROOT"
 echo "  Playwright dir: $PLAYWRIGHT_BROWSERS_PATH"
 echo ""
 
@@ -44,7 +46,9 @@ mkdir -p "$PLAYWRIGHT_BROWSERS_PATH"
 echo "✅ Playwright check done"
 
 # 6. Create runtime dirs
-mkdir -p "$PROJECT_ROOT/runtime/evidence" "$PROJECT_ROOT/runtime/tasks" "$PROJECT_ROOT/runtime/test_reports"
+mkdir -p "$PROJECT_ROOT/runtime/evidence" \
+         "$PROJECT_ROOT/runtime/tasks" \
+         "$PROJECT_ROOT/runtime/test_reports"
 echo "✅ runtime directories ready"
 
 echo ""

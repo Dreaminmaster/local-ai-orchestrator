@@ -1,25 +1,28 @@
 # Local AI Orchestrator — Windows Setup (Portable)
-$ProjectRoot = $PSScriptRoot
-$env:PLAYWRIGHT_BROWSERS_PATH = "$ProjectRoot\.playwright-browsers"
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Resolve-Path (Join-Path $ScriptDir "..")
+Set-Location $ProjectRoot
+$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $ProjectRoot ".playwright-browsers"
 
 Write-Host "🧠 Local AI Orchestrator — Windows Setup (Portable)" -ForegroundColor Cyan
 Write-Host "======================================================"
+Write-Host "  Project root: $ProjectRoot"
 Write-Host "  Playwright dir: $env:PLAYWRIGHT_BROWSERS_PATH"
 Write-Host ""
 
 # 1. Python check
 try {
-  $v = python --version 2>&1
-  Write-Host "✅ $v"
+    $v = python --version 2>&1
+    Write-Host "✅ $v"
 } catch {
-  Write-Host "❌ python not found. Install from: https://www.python.org/downloads/" -ForegroundColor Red
-  exit 1
+    Write-Host "❌ python not found. Install from: https://www.python.org/downloads/" -ForegroundColor Red
+    exit 1
 }
 
 # 2. Create venv
 if (-not (Test-Path "$ProjectRoot\venv")) {
-  Write-Host "📦 Creating virtual environment..."
-  python -m venv "$ProjectRoot\venv"
+    Write-Host "📦 Creating virtual environment..."
+    python -m venv "$ProjectRoot\venv"
 }
 Write-Host "✅ venv ready"
 
@@ -31,8 +34,8 @@ Write-Host "✅ requirements installed"
 
 # 4. Copy .env if missing
 if (-not (Test-Path "$ProjectRoot\.env")) {
-  Copy-Item "$ProjectRoot\.env.example" "$ProjectRoot\.env"
-  Write-Host "📝 .env created from .env.example"
+    Copy-Item "$ProjectRoot\.env.example" "$ProjectRoot\.env"
+    Write-Host "📝 .env created from .env.example"
 }
 Write-Host "✅ .env exists"
 
@@ -40,10 +43,10 @@ Write-Host "✅ .env exists"
 Write-Host "🌐 Installing Playwright Chromium to $env:PLAYWRIGHT_BROWSERS_PATH ..."
 New-Item -ItemType Directory -Force -Path "$env:PLAYWRIGHT_BROWSERS_PATH" | Out-Null
 try {
-  & "$ProjectRoot\venv\Scripts\playwright" install chromium 2>$null
-  Write-Host "✅ Playwright Chromium ready"
+    & "$ProjectRoot\venv\Scripts\playwright" install chromium 2>$null
+    Write-Host "✅ Playwright Chromium ready"
 } catch {
-  Write-Host "⚠️  Playwright install skipped. Install manually: set PLAYWRIGHT_BROWSERS_PATH=.playwright-browsers && playwright install chromium"
+    Write-Host "⚠️  Playwright install skipped. Install manually: set PLAYWRIGHT_BROWSERS_PATH=.playwright-browsers && playwright install chromium"
 }
 
 # 6. Runtime dirs
