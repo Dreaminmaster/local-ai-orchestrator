@@ -185,6 +185,99 @@ body {
 .ai-profile-dot.available { background: var(--success); }
 .ai-profile-dot.unavailable { background: var(--text-muted); }
 
+.ai-profile-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    font-size: 10px;
+}
+
+.workspace-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.system-status-bar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    font-size: 12px;
+}
+
+.system-status-bar div {
+    min-width: 0;
+}
+
+.system-status-bar strong {
+    display: block;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.system-status-bar span {
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+#externalAiPausePanel {
+    border-color: var(--warning);
+    background: color-mix(in srgb, var(--warning) 8%, var(--bg-secondary));
+}
+
+.web-ai-matrix {
+    overflow-x: auto;
+}
+
+.matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+.matrix-table th,
+.matrix-table td {
+    padding: 5px 6px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.matrix-table tr {
+    cursor: pointer;
+}
+
+.matrix-table tr:hover {
+    background: var(--bg-hover);
+}
+
+.matrix-detail {
+    margin-top: 8px;
+    padding: 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.hidden {
+    display: none;
+}
+
+.warning-text {
+    color: var(--warning);
+}
+
 /* Skills Grid */
 .skills-grid {
     display: flex;

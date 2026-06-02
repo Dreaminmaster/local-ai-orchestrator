@@ -12,11 +12,13 @@ from .gemini_web_adapter import GeminiWebAdapter
 from .kimi_web_adapter import KimiWebAdapter
 from .evidence_writer import WebAIEvidenceWriter
 from .answer_quality_check import AnswerQualityChecker
+from .workspace_manager import workspace_manager
+from .provider_status import ProviderState
+from .pending_action import pending_external_ai_store
 
 ADAPTERS = {
     "chatgpt": ChatGPTWebAdapter,
     "claude": ClaudeWebAdapter,
-    "claude_web": ClaudeWebAdapter,
     "doubao": DoubaoWebAdapter,
     "gemini": GeminiWebAdapter,
     "kimi": KimiWebAdapter,
@@ -24,10 +26,25 @@ ADAPTERS = {
 PROFILE_NAMES = {
     "chatgpt": "chatgpt",
     "claude": "claude",
-    "claude_web": "claude",
     "doubao": "doubao",
     "gemini": "gemini",
     "kimi": "kimi",
+}
+
+INTERVENTION_ACTIONS = {
+    "NEED_LOGIN": "Open Claude Workspace and log in, then click Recheck/Resume.",
+    "NEED_USER_INTERVENTION": "Handle the provider verification or popup, then click Recheck/Resume.",
+    "PAGE_NETWORK_ERROR": "Check the provider page or network banner, then click Recheck/Resume.",
+    "RETRYABLE_PAGE_ERROR": "Handle the provider page error, then click Recheck/Resume.",
+    "STALE_CONVERSATION": "Start a fresh provider chat, then click Recheck/Resume.",
+    "UNKNOWN_ERROR": "Inspect the provider workspace, then click Recheck/Resume.",
+}
+
+PROVIDER_ALIASES = {
+    "claude web": "claude",
+    "claude_web": "claude",
+    "chatgpt web": "chatgpt",
+    "chatgpt_web": "chatgpt",
 }
 
 
@@ -58,8 +75,9 @@ class WebAISkill(Skill):
         provider = (
             context.get("provider") or context.get("target") or "chatgpt"
         ).lower()
-        prompt = context.get("question") or context.get("prompt") or instruction
-        redaction = self.secret_scanner.redact(prompt)
+        provider = PROVIDER_ALIASES.get(provider, provider)
+        original_prompt = context.get("question") or context.get("prompt") or instruction
+        redaction = self.secret_scanner.redact(original_prompt)
         prompt = redaction.redacted_text
         redaction_meta = self.secret_scanner.evidence_summary(redaction)
         adapter_cls = ADAPTERS.get(provider)
@@ -67,9 +85,73 @@ class WebAISkill(Skill):
             return SkillResult(
                 self.name, False, "", error=f"Unknown web AI provider: {provider}"
             )
+        page = None
+        workspace_status = None
+        workspace_recovery = {}
+        if context.get("reuse_workspace", True):
+            try:
+                page = await workspace_manager.ensure_workspace(provider)
+                workspace_status = workspace_manager.last_statuses.get(provider)
+                workspace_recovery = workspace_manager.last_recoveries.get(provider, {})
+                if workspace_status and workspace_status.state in {
+                    ProviderState.NEED_LOGIN,
+                    ProviderState.NEED_USER_INTERVENTION,
+                    ProviderState.STALE_CONVERSATION,
+                    ProviderState.PAGE_NETWORK_ERROR,
+                    ProviderState.RETRYABLE_PAGE_ERROR,
+                    ProviderState.UNKNOWN_ERROR,
+                }:
+                    status_value = workspace_status.state.value
+                    failure_reason = (
+                        "claude_profile_missing_or_not_logged_in"
+                        if provider == "claude" and workspace_status.state == ProviderState.NEED_LOGIN
+                        else status_value.lower()
+                    )
+                    suggested_user_action = INTERVENTION_ACTIONS.get(
+                        status_value,
+                        "Handle the provider workspace, then click Recheck/Resume.",
+                    )
+                    task_id = context.get("task_id", "external_ai_manual")
+                    step_id = f"step_{int(context.get('step_index', 0)) + 1}"
+                    pending = pending_external_ai_store.save(
+                        task_id=task_id,
+                        step_id=step_id,
+                        provider=provider,
+                        original_prompt=original_prompt,
+                        redacted_prompt=prompt,
+                        context=context,
+                        provider_status=status_value,
+                        failure_reason=failure_reason,
+                        suggested_user_action=suggested_user_action,
+                        can_resume=True,
+                    )
+                    return SkillResult(
+                        skill=self.name,
+                        success=False,
+                        result="",
+                        error=failure_reason,
+                        needs_follow_up=True,
+                        suggested_next_action="user_intervention_required",
+                        metadata={
+                            "provider": provider,
+                            "provider_status": status_value,
+                            "failure_reason": failure_reason,
+                            "suggested_user_action": suggested_user_action,
+                            "can_resume": True,
+                            "pending_external_ai": pending,
+                            "workspace_status": workspace_status.to_dict(),
+                            "workspace_recovery": workspace_recovery,
+                            "need_user_intervention": True,
+                        },
+                    )
+            except Exception as exc:
+                workspace_recovery = {"error": str(exc)}
+                page = None
         adapter = adapter_cls(
+            page=page,
             profile_name=PROFILE_NAMES.get(provider, provider),
             headless=context.get("headless", False),
+            debug=context.get("debug", False),
         )
         answers, evidence = [], []
         try:
@@ -77,19 +159,108 @@ class WebAISkill(Skill):
             result_text = response.answer
             # Answer quality check
             quality_check_meta = self._check_answer_quality(response)
+            run_metadata = self._run_metadata(
+                provider, response, quality_check_meta, redaction_meta
+            )
+            run_evidence = await self.evidence_writer.save_run(
+                provider,
+                prompt,
+                result_text,
+                page=getattr(adapter, "page", None),
+                metadata=run_metadata,
+            )
+            evidence.append(run_evidence)
+            if response.needs_login:
+                failure_reason = (
+                    "claude_login_required" if provider == "claude" else "provider_login_required"
+                )
+                task_id = context.get("task_id", "external_ai_manual")
+                step_id = f"step_{int(context.get('step_index', 0)) + 1}"
+                pending = pending_external_ai_store.save(
+                    task_id=task_id,
+                    step_id=step_id,
+                    provider=provider,
+                    original_prompt=original_prompt,
+                    redacted_prompt=prompt,
+                    context=context,
+                    provider_status="NEED_LOGIN",
+                    failure_reason=failure_reason,
+                    suggested_user_action=INTERVENTION_ACTIONS["NEED_LOGIN"],
+                    can_resume=True,
+                )
+                return SkillResult(
+                    skill=self.name,
+                    success=False,
+                    result="",
+                    error=failure_reason,
+                    evidence=evidence + response.evidence_files,
+                    needs_follow_up=True,
+                    suggested_next_action="user_intervention_required",
+                    metadata={
+                        "provider": provider,
+                        "quality_check": quality_check_meta,
+                        "evidence_path": run_evidence,
+                        "used_selector": "",
+                        "send": {},
+                        "extract": {},
+                        "redaction": redaction_meta,
+                        "workspace_status": workspace_status.to_dict()
+                        if workspace_status
+                        else {},
+                        "workspace_recovery": workspace_recovery,
+                        "need_user_intervention": True,
+                        "failure_reason": failure_reason,
+                        "provider_status": "NEED_LOGIN",
+                        "suggested_user_action": INTERVENTION_ACTIONS["NEED_LOGIN"],
+                        "can_resume": True,
+                        "pending_external_ai": pending,
+                    },
+                )
+            if context.get("debug"):
+                try:
+                    debug_dir = Path(run_evidence)
+                    await adapter.page.screenshot(
+                        path=str(debug_dir / "screenshot_after_answer.png"),
+                        full_page=True,
+                    )
+                    (debug_dir / "candidate_selectors.json").write_text(
+                        __import__("json").dumps(
+                            response.metadata.get("extract", {}).get(
+                                "candidate_selectors", []
+                            )
+                            if response.metadata
+                            else [],
+                            ensure_ascii=False,
+                            indent=2,
+                        ),
+                        encoding="utf-8",
+                    )
+                except Exception:
+                    pass
             if not quality_check_meta["passed"]:
                 return SkillResult(
                     skill=self.name,
                     success=False,
                     result=result_text,
                     error=f"Answer quality check failed: {quality_check_meta['reason']}",
-                    evidence=response.evidence_files,
+                    evidence=evidence + response.evidence_files,
                     needs_follow_up=True,
                     suggested_next_action="retry_or_escalate",
                     metadata={
                         "provider": provider,
                         "quality_check": quality_check_meta,
+                        "evidence_path": run_evidence,
+                        "used_selector": (response.metadata or {})
+                        .get("extract", {})
+                        .get("used_selector", ""),
+                        "send": (response.metadata or {}).get("send", {}),
+                        "extract": (response.metadata or {}).get("extract", {}),
                         "redaction": redaction_meta,
+                        "workspace_status": workspace_status.to_dict()
+                        if workspace_status
+                        else {},
+                        "workspace_recovery": workspace_recovery,
+                        "need_user_intervention": False,
                     },
                 )
 
@@ -138,12 +309,48 @@ class WebAISkill(Skill):
                     "needs_login": response.needs_login,
                     "followups": max(0, len(answers) - 1),
                     "profile": PROFILE_NAMES.get(provider, provider),
+                    "evidence_path": run_evidence,
+                    "quality_check": quality_check_meta,
+                    "used_selector": (response.metadata or {})
+                    .get("extract", {})
+                    .get("used_selector", ""),
+                    "send": (response.metadata or {}).get("send", {}),
+                    "extract": (response.metadata or {}).get("extract", {}),
                     "redaction": redaction_meta,
+                    "workspace_status": workspace_status.to_dict()
+                    if workspace_status
+                    else {},
+                    "workspace_recovery": workspace_recovery,
+                    "need_user_intervention": False,
                 },
             )
         except Exception as exc:
             # selector/page failure fallback: capture desktop screenshot to aid visual operation.
             fallback_evidence = []
+            evidence_path = ""
+            try:
+                evidence_path = await self.evidence_writer.save_run(
+                    provider,
+                    prompt,
+                    "",
+                    page=getattr(adapter, "page", None),
+                    metadata={
+                        "provider": provider,
+                        "profile_dir": str(
+                            Path("runtime/browser_profiles")
+                            / PROFILE_NAMES.get(provider, provider)
+                        ),
+                        "send_success": False,
+                        "extract_success": False,
+                        "answer_quality": "FAIL",
+                        "quality_issues": [str(exc)],
+                        "used_selector": "",
+                        "created_at": __import__("datetime").datetime.now().isoformat(),
+                    },
+                )
+                fallback_evidence.append(evidence_path)
+            except Exception:
+                pass
             try:
                 desktop_result = await DesktopVisualSkill().execute(
                     "observe current AI web page after selector failure",
@@ -163,15 +370,47 @@ class WebAISkill(Skill):
                 error=f"web_ai selector/page failure: {exc}",
                 needs_follow_up=True,
                 suggested_next_action="fallback_to_desktop_visual",
-                metadata={"provider": provider, "fallback": "desktop_visual"},
+                metadata={
+                    "provider": provider,
+                    "fallback": "desktop_visual",
+                    "evidence_path": evidence_path,
+                    "failure_stage": "selector_send_or_page",
+                },
             )
 
     def _check_answer_quality(self, response) -> dict:
         answer = response.answer or ""
         if response.needs_login:
-            return {"passed": False, "reason": "Login required", "quality": "FAIL"}
+            return {"passed": False, "reason": "", "quality": "BLOCKED"}
         quality = self.quality_checker.check(answer)
+        if response.metadata and response.metadata.get("extract", {}).get("body_fallback"):
+            quality["quality"] = "PARTIAL"
+            quality["reliable"] = False
+            if "body_fallback" not in quality["issues"]:
+                quality["issues"].append("body_fallback")
         if not quality["reliable"]:
             reasons = "; ".join(quality["issues"])
             return {"passed": False, "reason": reasons, "quality": quality["quality"]}
         return {"passed": True, "reason": "", "quality": "PASS"}
+
+    def _run_metadata(self, provider, response, quality_check_meta, redaction_meta):
+        profile = PROFILE_NAMES.get(provider, provider)
+        extract = (response.metadata or {}).get("extract", {})
+        send = (response.metadata or {}).get("send", {})
+        return {
+            "provider": provider,
+            "profile_dir": str(Path("runtime/browser_profiles") / profile),
+            "send_success": bool(send.get("send_success")),
+            "extract_success": bool(response.answer),
+            "answer_quality": quality_check_meta.get("quality"),
+            "quality_issues": [quality_check_meta.get("reason")]
+            if quality_check_meta.get("reason")
+            else [],
+            "used_selector": extract.get("used_selector", ""),
+            "body_fallback": extract.get("body_fallback", False),
+            "error_reason": extract.get("error_reason", ""),
+            "send": send,
+            "extract": extract,
+            "redaction": redaction_meta,
+            "created_at": __import__("datetime").datetime.now().isoformat(),
+        }

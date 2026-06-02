@@ -19,6 +19,14 @@
                 <span class="status-text" id="llmStatusText">未连接</span>
             </div>
         </header>
+        <section class="system-status-bar">
+            <div><strong>Backend</strong><span id="backendStatus">checking...</span></div>
+            <div><strong>Portable mode</strong><span id="portableStatus">checking...</span></div>
+            <div><strong>LM Studio</strong><span id="lmStudioStatus">checking...</span></div>
+            <div><strong>External AI</strong><span id="externalAiStatus">checking...</span></div>
+            <div><strong>Desktop Shell</strong><span id="desktopShellStatus">checking...</span></div>
+            <div><strong>Current task</strong><span id="currentTaskStatus">—</span></div>
+        </section>
 
         <!-- Main Layout -->
         <div class="main-layout">
@@ -39,6 +47,26 @@
                 <div class="panel-section">
                     <h3>🤖 外部 AI 状态</h3>
                     <div id="aiProfiles" class="ai-profiles"></div>
+                </div>
+                <div class="panel-section">
+                    <h3>🧩 外部 AI 工作区</h3>
+                    <div class="workspace-actions">
+                        <button class="btn-secondary" onclick="openWebAiWorkspace('claude')">打开 Claude 工作区</button>
+                        <button class="btn-secondary" onclick="refreshWorkspaceStatus('claude')">重新检测</button>
+                        <button class="btn-secondary" onclick="testWebAiWorkspace('claude')">测试 Claude</button>
+                        <button class="btn-secondary" onclick="resumeWebAiWorkspace('claude')">我已处理，继续</button>
+                        <button class="btn-secondary" onclick="resetWebAiProfile('claude')">重置 profile</button>
+                        <button class="btn-secondary" onclick="showWebAiEvidence('claude')">查看 evidence</button>
+                    </div>
+                    <div class="workspace-actions">
+                        <button class="btn-secondary" onclick="openWebAiWorkspace('chatgpt')">打开 ChatGPT 工作区</button>
+                        <button class="btn-secondary" onclick="refreshWorkspaceStatus('chatgpt')">重新检测</button>
+                        <button class="btn-secondary" onclick="testWebAiWorkspace('chatgpt')">测试 ChatGPT</button>
+                        <button class="btn-secondary" onclick="resumeWebAiWorkspace('chatgpt')">我已处理，继续</button>
+                        <button class="btn-secondary" onclick="resetWebAiProfile('chatgpt')">重置 profile</button>
+                        <button class="btn-secondary" onclick="showWebAiEvidence('chatgpt')">查看 evidence</button>
+                    </div>
+                    <div id="webAiWorkspaceStatus" class="memory-list"><p class="placeholder">—</p></div>
                 </div>
                 <div class="panel-section">
                     <h3>🔧 可用技能</h3>
@@ -89,6 +117,13 @@
                 </div>
 
                 <!-- Execution Plan -->
+                <section id="externalAiPausePanel" class="preflight-panel hidden">
+                    <h3>🧩 外部 AI 等待处理</h3>
+                    <p id="externalAiPauseReason" class="placeholder">—</p>
+                    <button class="btn-execute" onclick="resumePendingExternalAi()">我已处理，继续</button>
+                    <button class="btn-secondary" onclick="loadPendingExternalAi()">查看待处理外部 AI 动作</button>
+                    <button class="btn-secondary" onclick="refreshWorkspaceStatus('claude')">重新检测</button>
+                </section>
                 <div class="execution-plan" id="executionPlan">
                     <h3>📋 执行计划</h3>
                     <div id="planSteps" class="plan-steps">
@@ -116,6 +151,12 @@
                     <div id="evidenceBoard" class="evidence-list">
                         <p class="placeholder">执行过程中将自动收集证据</p>
                     </div>
+                </div>
+                <div class="panel-section">
+                    <h3>🧪 Web AI Matrix</h3>
+                    <button class="btn-secondary" onclick="loadWebAiMatrix()">刷新矩阵</button>
+                    <div id="webAiMatrix" class="web-ai-matrix"><p class="placeholder">—</p></div>
+                    <div id="webAiMatrixDetail" class="matrix-detail hidden"></div>
                 </div>
                 <div class="panel-section">
                     <h3>📈 执行统计</h3>

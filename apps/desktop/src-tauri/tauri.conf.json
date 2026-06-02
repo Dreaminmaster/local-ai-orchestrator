@@ -4,7 +4,7 @@
   "version": "0.1.0-alpha",
   "identifier": "com.dreaminmaster.local-ai-orchestrator",
   "build": {
-    "beforeDevCommand": "cd ../.. && python run.py",
+    "beforeDevCommand": "./run_dev_backend.sh",
     "devUrl": "http://127.0.0.1:8422",
     "beforeBuildCommand": "",
     "frontendDist": "../../frontend"
@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Local AI Orchestrator",
         "width": 1440,
         "height": 1000,

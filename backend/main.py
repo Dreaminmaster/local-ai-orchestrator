@@ -21,6 +21,8 @@ from backend.api.websocket import router as ws_router
 from backend.api.confirmations import router as confirmations_router
 from backend.api.contracts import router as contracts_router
 from backend.api.web_ai_profiles import router as web_ai_router
+from backend.api.external_ai_actions import router as external_ai_actions_router
+from backend.api.health import router as health_router
 
 # ---------------------------------------------------------------------------
 # Lifespan
@@ -63,6 +65,8 @@ app.include_router(skills_router, prefix="/api")
 app.include_router(confirmations_router, prefix="/api")
 app.include_router(contracts_router, prefix="/api")
 app.include_router(web_ai_router, prefix="/api")
+app.include_router(external_ai_actions_router, prefix="/api")
+app.include_router(health_router, prefix="/api")
 app.include_router(ws_router, prefix="/ws")
 
 # Serve frontend

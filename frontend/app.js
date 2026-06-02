@@ -13,6 +13,8 @@ let successCount = 0;
 let failCount = 0;
 let evidenceCount = 0;
 let logCounter = 0;
+let currentTaskId = "";
+let pendingExternalAiTaskId = "";
 
 const els = {
   llmStatus: document.getElementById("llmStatus"),
@@ -20,6 +22,17 @@ const els = {
   goalDisplay: document.getElementById("goalDisplay"),
   criteriaList: document.getElementById("criteriaList"),
   aiProfiles: document.getElementById("aiProfiles"),
+  webAiMatrix: document.getElementById("webAiMatrix"),
+  webAiMatrixDetail: document.getElementById("webAiMatrixDetail"),
+  webAiWorkspaceStatus: document.getElementById("webAiWorkspaceStatus"),
+  backendStatus: document.getElementById("backendStatus"),
+  portableStatus: document.getElementById("portableStatus"),
+  lmStudioStatus: document.getElementById("lmStudioStatus"),
+  externalAiStatus: document.getElementById("externalAiStatus"),
+  desktopShellStatus: document.getElementById("desktopShellStatus"),
+  currentTaskStatus: document.getElementById("currentTaskStatus"),
+  externalAiPausePanel: document.getElementById("externalAiPausePanel"),
+  externalAiPauseReason: document.getElementById("externalAiPauseReason"),
   skillsList: document.getElementById("skillsList"),
   taskInput: document.getElementById("taskInput"),
   executeBtn: document.getElementById("executeBtn"),
@@ -50,14 +63,41 @@ const els = {
 };
 
 async function init() {
+  await loadSystemHealth();
   await loadSkills();
   await loadAiProfiles();
   await loadPendingConfirmations();
   await loadResumableTasks();
   await loadWebAiProfiles();
+  await loadPendingExternalAi();
+  await loadWebAiMatrix();
+  await refreshWorkspaceStatus("claude");
   initCapabilities();
   togglePreflight();
   connectWebSocket();
+}
+
+async function loadSystemHealth() {
+  if (els.desktopShellStatus) {
+    els.desktopShellStatus.textContent = window.__TAURI_INTERNALS__ ? "dev" : "browser mode";
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/health`);
+    const data = await res.json();
+    if (els.backendStatus) els.backendStatus.textContent = data.ok ? "running" : "unavailable";
+    if (els.portableStatus) els.portableStatus.textContent = data.portable_mode ? "OK" : "warning";
+    if (els.lmStudioStatus) els.lmStudioStatus.textContent = data.lmstudio_reachable ? "connected" : "disconnected";
+    if (els.externalAiStatus) {
+      const claude = data.external_ai?.claude?.state || "NOT_CONFIGURED";
+      const chatgpt = data.external_ai?.chatgpt?.state || "NOT_CONFIGURED";
+      els.externalAiStatus.textContent = `Claude ${claude} / ChatGPT ${chatgpt}`;
+    }
+  } catch (e) {
+    if (els.backendStatus) els.backendStatus.textContent = "unavailable";
+    if (els.portableStatus) els.portableStatus.textContent = "unknown";
+    if (els.lmStudioStatus) els.lmStudioStatus.textContent = "unknown";
+    if (els.externalAiStatus) els.externalAiStatus.textContent = "unknown";
+  }
 }
 
 async function loadSkills() {
@@ -448,6 +488,10 @@ function handleEvent(event) {
       log(`生成执行计划，共 ${data.plan.total_steps} 步`, "info", "📋", time);
       break;
     case "step_start":
+      if (data.task_id) {
+        currentTaskId = data.task_id;
+        if (els.currentTaskStatus) els.currentTaskStatus.textContent = currentTaskId;
+      }
       updateStepStatus(data.step, "active");
       log(`[Step ${data.step}/${data.total}] ${data.goal}`, "info", "▶️", time);
       break;
@@ -463,6 +507,31 @@ function handleEvent(event) {
       break;
     case "step_result":
       handleStepResult(data, time);
+      break;
+    case "external_ai_need_user":
+      pendingExternalAiTaskId = data.task_id || currentTaskId;
+      if (els.externalAiPausePanel) els.externalAiPausePanel.classList.remove("hidden");
+      if (els.externalAiPauseReason) {
+        els.externalAiPauseReason.textContent = `${data.provider || "External AI"} 需要处理：${data.reason || ""}。${data.suggested_user_action || ""}`;
+      }
+      log(`外部 AI 需要用户处理: ${data.reason || ""}`, "warning", "🙋", time);
+      break;
+    case "external_ai_pending_saved":
+      pendingExternalAiTaskId = data.task_id || pendingExternalAiTaskId;
+      log(`已保存 pending external AI action: ${pendingExternalAiTaskId}`, "info", "💾", time);
+      loadPendingExternalAi();
+      break;
+    case "external_ai_resume_started":
+      log("外部 AI 恢复开始", "phase", "▶", time);
+      break;
+    case "external_ai_resume_success":
+      log("外部 AI 恢复成功", "success", "✅", time);
+      break;
+    case "external_ai_resume_still_needs_user":
+      log("外部 AI 仍需用户处理", "warning", "🙋", time);
+      break;
+    case "external_ai_resume_failed":
+      log(`外部 AI 恢复失败: ${data.failure_reason || ""}`, "error", "❌", time);
       break;
     case "failure_repair":
       log(
@@ -496,6 +565,10 @@ function handleEvent(event) {
       break;
     case "stopped":
       finishUi();
+      if (data.resume_payload?.task_id) {
+        pendingExternalAiTaskId = data.resume_payload.task_id;
+        if (els.currentTaskStatus) els.currentTaskStatus.textContent = pendingExternalAiTaskId;
+      }
       log(`任务停止: ${data.reason}`, "warning", "🛑", time);
       break;
     case "need_user":
@@ -765,10 +838,18 @@ async function loadWebAiProfiles() {
       const testedLabel = p.test_summary?.created_at
         ? new Date(p.test_summary.created_at).toLocaleDateString()
         : "—";
+      const recommendation = p.recommendation_label || (
+        provider === "claude" && p.test_status === "PASS"
+          ? "推荐使用"
+          : provider === "chatgpt" && p.test_status === "PARTIAL"
+          ? "可用但不稳定"
+          : p.test_status === "FAIL"
+          ? "需要重新测试"
+          : "");
       html += `<div class="ai-profile-item" style="flex-direction:column;align-items:flex-start;gap:2px;">
         <div class="ai-profile-dot ${dotClass}"></div>
-        <span><strong>${escapeHtml(provider)}</strong></span>
-        <small>${escapeHtml(p.test_status)} · logged_in:${p.logged_in} · tested:${testedLabel}${provider === "claude" ? " ⭐" : ""}</small>
+        <span><strong>${escapeHtml(provider)}</strong>${recommendation ? ` <span class="ai-profile-badge">${escapeHtml(recommendation)}</span>` : ""}</span>
+        <small>${escapeHtml(p.test_status)} · logged_in:${p.logged_in} · tested:${testedLabel}</small>
         <div style="display:flex;gap:4px;margin-top:2px;">
           <button class="btn-secondary" onclick="initWebAiProfile('${provider}')" style="font-size:10px;padding:2px 6px;">Init</button>
           <button class="btn-secondary" onclick="testWebAiProfile('${provider}')" style="font-size:10px;padding:2px 6px;">Test</button>
@@ -781,6 +862,209 @@ async function loadWebAiProfiles() {
   } catch (e) {
     /* non-critical */
   }
+}
+
+function boolMark(value) {
+  return value ? "✓" : "—";
+}
+
+async function loadWebAiMatrix() {
+  if (!els.webAiMatrix) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/web-ai/test-matrix`);
+    const data = await res.json();
+    const providers = data.providers || [];
+    if (!providers.length) {
+      els.webAiMatrix.innerHTML = '<p class="placeholder">暂无 provider 测试报告</p>';
+      return;
+    }
+    els.webAiMatrix.innerHTML = `<table class="matrix-table">
+      <thead>
+        <tr>
+          <th>Provider</th><th>Login</th><th>Send</th><th>Wait</th><th>Extract</th><th>AQ</th><th>Status</th><th>Last</th><th>Evidence</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${providers.map((p) => `<tr onclick='showWebAiMatrixDetail(${JSON.stringify(p).replace(/'/g, "&#39;")})'>
+          <td>${escapeHtml(p.provider)}</td>
+          <td>${boolMark(p.login)}</td>
+          <td>${boolMark(p.send)}</td>
+          <td>${boolMark(p.wait)}</td>
+          <td>${boolMark(p.extract)}</td>
+          <td>${escapeHtml(p.aq || "NOT_RUN")}</td>
+          <td>${escapeHtml(p.state || p.status || "NOT_CONFIGURED")}</td>
+          <td>${escapeHtml(p.last_tested ? new Date(p.last_tested).toLocaleDateString() : "—")}</td>
+          <td>${p.evidence_path ? "✓" : "—"}</td>
+        </tr>`).join("")}
+      </tbody>
+    </table>`;
+  } catch (e) {
+    els.webAiMatrix.innerHTML = `<p class="placeholder">矩阵加载失败: ${escapeHtml(e.message)}</p>`;
+  }
+}
+
+function showWebAiMatrixDetail(p) {
+  if (!els.webAiMatrixDetail) return;
+  els.webAiMatrixDetail.classList.remove("hidden");
+  els.webAiMatrixDetail.innerHTML = `<strong>${escapeHtml(p.provider)}</strong>
+    <div>failure reason: ${escapeHtml(p.failure_reason || "—")}</div>
+    <div>used_selector: ${escapeHtml(p.used_selector || "—")}</div>
+    <div>quality_issues: ${escapeHtml((p.quality_issues || []).join("; ") || "—")}</div>
+    <div>evidence: ${escapeHtml(p.evidence_path || "—")}</div>
+    <div>screenshot: ${escapeHtml(p.screenshot_path || "—")}</div>
+    <div>metadata: ${escapeHtml(p.metadata_path || "—")}</div>`;
+}
+
+async function openWebAiWorkspace(provider) {
+  log(`打开 ${provider} 项目专用工作区...`, "phase", "🌐", new Date().toLocaleTimeString());
+  const res = await fetch(`${API_BASE}/api/web-ai/workspace/${provider}/open`, { method: "POST" });
+  const data = await res.json();
+  renderWorkspaceStatus(data);
+}
+
+async function closeWebAiWorkspace(provider) {
+  const res = await fetch(`${API_BASE}/api/web-ai/workspace/${provider}/close`, { method: "POST" });
+  const data = await res.json();
+  renderWorkspaceStatus(data);
+}
+
+async function refreshWorkspaceStatus(provider) {
+  if (!els.webAiWorkspaceStatus) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/web-ai/workspace/${provider}/status`);
+    const data = await res.json();
+    renderWorkspaceStatus(data);
+  } catch (e) {
+    els.webAiWorkspaceStatus.innerHTML = `<p class="placeholder">状态加载失败: ${escapeHtml(e.message)}</p>`;
+  }
+}
+
+function workspaceStateLabel(state) {
+  const labels = {
+    READY: "可用",
+    PASS: "已测试通过",
+    PARTIAL: "可用但不稳定",
+    NEED_LOGIN: "需要登录",
+    NEED_USER_INTERVENTION: "需要你处理",
+    FAIL: "测试失败",
+    NOT_CONFIGURED: "未配置",
+    STALE_CONVERSATION: "会话已失效",
+    PAGE_NETWORK_ERROR: "页面网络错误",
+    RETRYABLE_PAGE_ERROR: "页面可重试错误",
+    UNKNOWN_ERROR: "未知错误",
+  };
+  return labels[state] || state || "UNKNOWN";
+}
+
+function renderWorkspaceStatus(data) {
+  if (!els.webAiWorkspaceStatus) return;
+  if (data.error) {
+    els.webAiWorkspaceStatus.innerHTML = `<p class="placeholder">${escapeHtml(data.error)}</p>`;
+    return;
+  }
+  const state = data.state || "UNKNOWN";
+  const needsUser = data.need_user_intervention || ["NEED_LOGIN", "NEED_USER_INTERVENTION", "STALE_CONVERSATION", "PAGE_NETWORK_ERROR", "RETRYABLE_PAGE_ERROR"].includes(state);
+  const actionText = data.suggested_user_action || "请在 Claude 工作区窗口完成登录/验证/页面处理，然后点击“我已处理，继续”。";
+  els.webAiWorkspaceStatus.innerHTML = `<div class="memory-item workspace-state-${escapeHtml(state.toLowerCase())}">
+    <strong>${escapeHtml(data.provider || "claude")}</strong> · ${escapeHtml(data.state || "UNKNOWN")}<br>
+    状态：${escapeHtml(workspaceStateLabel(state))}<br>
+    profile: ${escapeHtml(data.profile_dir || "runtime/browser_profiles/claude")}<br>
+    url: ${escapeHtml(data.page_url || "—")}<br>
+    ${needsUser ? `<span class="warning-text">请在 Claude 工作区窗口完成登录/验证/页面处理，然后点击“我已处理，继续”。</span><br><small>${escapeHtml(actionText)}</small><br>` : ""}
+    ${data.can_resume ? "<span class=\"success-text\">可继续任务</span><br>" : ""}
+    <span>${escapeHtml(data.last_error || "")}</span>
+  </div>`;
+}
+
+async function testWebAiWorkspace(provider) {
+  const res = await fetch(`${API_BASE}/api/web-ai/workspace/${provider}/test`, { method: "POST" });
+  const data = await res.json();
+  renderWorkspaceStatus(data);
+  log(data.message || `${provider} workspace test status refreshed`, "info", "🧪", new Date().toLocaleTimeString());
+}
+
+async function resumeWebAiWorkspace(provider) {
+  if (pendingExternalAiTaskId) {
+    await resumePendingExternalAi();
+    return;
+  }
+  const res = await fetch(`${API_BASE}/api/web-ai/workspace/${provider}/resume`, { method: "POST" });
+  const data = await res.json();
+  renderWorkspaceStatus(data);
+  if (data.can_resume) {
+    log(`${provider} 已可继续，原任务可恢复执行`, "success", "▶", new Date().toLocaleTimeString());
+  } else {
+    log(`${provider} 仍需处理：${data.suggested_user_action || data.state}`, "warning", "⚠", new Date().toLocaleTimeString());
+  }
+}
+
+async function loadPendingExternalAi() {
+  try {
+    const res = await fetch(`${API_BASE}/api/external-ai/pending`);
+    const data = await res.json();
+    const pending = data.pending || [];
+    if (pending.length) {
+      pendingExternalAiTaskId = pending[0].task_id;
+      if (els.externalAiPausePanel) els.externalAiPausePanel.classList.remove("hidden");
+      if (els.externalAiPauseReason) {
+        const item = pending[0];
+        els.externalAiPauseReason.textContent = `${item.provider} 等待处理：${item.failure_reason}. ${item.suggested_user_action}`;
+      }
+      if (els.currentTaskStatus) els.currentTaskStatus.textContent = pendingExternalAiTaskId;
+    }
+    return pending;
+  } catch (e) {
+    log(`加载 pending external AI 失败: ${e.message}`, "warning", "⚠", new Date().toLocaleTimeString());
+    return [];
+  }
+}
+
+async function resumePendingExternalAi() {
+  if (!pendingExternalAiTaskId) {
+    const pending = await loadPendingExternalAi();
+    if (!pending.length) {
+      log("没有待恢复的外部 AI 动作", "info", "ℹ", new Date().toLocaleTimeString());
+      return;
+    }
+  }
+  const taskId = pendingExternalAiTaskId;
+  log(`恢复外部 AI 动作: ${taskId}`, "phase", "▶", new Date().toLocaleTimeString());
+  const res = await fetch(`${API_BASE}/api/external-ai/${taskId}/resume`, { method: "POST" });
+  const data = await res.json();
+  if (data.still_needs_user) {
+    if (els.externalAiPausePanel) els.externalAiPausePanel.classList.remove("hidden");
+    if (els.externalAiPauseReason) {
+      els.externalAiPauseReason.textContent = `${data.provider} 仍需处理：${data.failure_reason}. ${data.suggested_user_action || ""}`;
+    }
+    renderWorkspaceStatus(data.workspace_status || data);
+    log(`仍需处理: ${data.failure_reason}`, "warning", "🙋", new Date().toLocaleTimeString());
+    return;
+  }
+  if (data.success) {
+    log("外部 AI 动作恢复成功，继续原任务", "success", "✅", new Date().toLocaleTimeString());
+    if (els.externalAiPausePanel) els.externalAiPausePanel.classList.add("hidden");
+    if (data.resume_payload?.task_id) {
+      await connectContractWebSocket(null, null, data.resume_payload.task_id);
+    }
+    return;
+  }
+  log(`外部 AI 恢复失败: ${data.failure_reason || data.error || "unknown"}`, "error", "❌", new Date().toLocaleTimeString());
+}
+
+async function showWebAiEvidence(provider) {
+  const res = await fetch(`${API_BASE}/api/web-ai/workspace/${provider}/evidence`);
+  const data = await res.json();
+  const evidence = data.evidence || [];
+  if (!evidence.length) {
+    renderWorkspaceStatus({ provider, state: "NOT_CONFIGURED", profile_dir: `runtime/browser_profiles/${provider}`, last_error: "暂无 evidence" });
+    return;
+  }
+  els.webAiWorkspaceStatus.innerHTML = evidence.map((item) => `<div class="memory-item">
+    <strong>${escapeHtml(provider)} evidence</strong><br>
+    path: ${escapeHtml(item.path)}<br>
+    screenshot: ${escapeHtml(item.screenshot)}<br>
+    metadata: ${escapeHtml(item.metadata)}
+  </div>`).join("");
 }
 
 async function initWebAiProfile(provider) {

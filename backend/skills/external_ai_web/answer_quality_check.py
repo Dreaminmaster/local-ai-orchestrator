@@ -46,13 +46,15 @@ LOW_QUALITY_PATTERNS = {
     ],
     "network_error": [
         "network error",
-        "connection",
-        "timeout",
-        "dns",
-        "refused",
-        "无法连接",
+        "connection lost",
+        "connection failed",
+        "unable to connect",
+        "request timed out",
+        "reconnecting",
         "网络错误",
-        "超时",
+        "无法连接",
+        "连接失败",
+        "请求超时",
     ],
     "not_loaded": ["loading", "please wait", "connecting", "initializing", "加载中"],
 }
@@ -76,7 +78,7 @@ class AnswerQualityChecker:
 
         lower = answer.lower()
         for category, patterns in LOW_QUALITY_PATTERNS.items():
-            if any(p in lower for p in patterns):
+            if any(p and p in lower for p in patterns):
                 result["issues"].append(category)
 
         if result["issues"]:

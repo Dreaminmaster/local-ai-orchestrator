@@ -21,6 +21,10 @@ runtime/
 .orchestrator_snapshots/
 .playwright-browsers/
 *.log
+node_modules/
+target/
+apps/desktop/node_modules/
+apps/desktop/src-tauri/target/
 
 # Test fixtures (intentionally broken)
 tests/fixtures/broken_python_syntax/

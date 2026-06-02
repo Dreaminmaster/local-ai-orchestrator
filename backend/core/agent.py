@@ -415,6 +415,56 @@ class Agent:
             chain_results = await self.skill_router.execute_chain(
                 skill_chain, instruction, context
             )
+            pending_external_ai = next(
+                (
+                    r.get("metadata", {}).get("pending_external_ai")
+                    for r in chain_results
+                    if r.get("metadata", {}).get("need_user_intervention")
+                    and r.get("metadata", {}).get("pending_external_ai")
+                ),
+                None,
+            )
+            if pending_external_ai:
+                s = self.step_state_manager.get(task_id)
+                s.current_step_index = current_step_index
+                s.goal_contract = goal_contract
+                s.authorization_contract = authorization_contract
+                s.plan_steps = steps
+                s.next_actions.append(
+                    {
+                        "type": "pending_external_ai",
+                        "provider": pending_external_ai.get("provider"),
+                        "failure_reason": pending_external_ai.get("failure_reason"),
+                    }
+                )
+                self.step_state_store.save(s)
+                yield AgentEvent(
+                    "external_ai_need_user",
+                    {
+                        "task_id": task_id,
+                        "provider": pending_external_ai.get("provider"),
+                        "reason": pending_external_ai.get("failure_reason"),
+                        "suggested_user_action": pending_external_ai.get(
+                            "suggested_user_action"
+                        ),
+                    },
+                )
+                yield AgentEvent(
+                    "external_ai_pending_saved",
+                    {"task_id": task_id, "pending": pending_external_ai},
+                )
+                yield AgentEvent(
+                    "stopped",
+                    {
+                        "task_id": task_id,
+                        "reason": "external_ai_need_user",
+                        "resume_payload": {
+                            "task_id": task_id,
+                            "resume_from_task_id": task_id,
+                        },
+                    },
+                )
+                return
             for r in chain_results:
                 if authorization_contract.get(
                     "authorization_mode"
@@ -642,6 +692,56 @@ class Agent:
             chain_results = await self.skill_router.execute_chain(
                 skill_chain, instruction, context
             )
+            pending_external_ai = next(
+                (
+                    r.get("metadata", {}).get("pending_external_ai")
+                    for r in chain_results
+                    if r.get("metadata", {}).get("need_user_intervention")
+                    and r.get("metadata", {}).get("pending_external_ai")
+                ),
+                None,
+            )
+            if pending_external_ai:
+                s = self.step_state_manager.get(task_id)
+                s.current_step_index = current_step_index
+                s.goal_contract = goal_contract
+                s.authorization_contract = authorization_contract
+                s.plan_steps = steps
+                s.next_actions.append(
+                    {
+                        "type": "pending_external_ai",
+                        "provider": pending_external_ai.get("provider"),
+                        "failure_reason": pending_external_ai.get("failure_reason"),
+                    }
+                )
+                self.step_state_store.save(s)
+                yield AgentEvent(
+                    "external_ai_need_user",
+                    {
+                        "task_id": task_id,
+                        "provider": pending_external_ai.get("provider"),
+                        "reason": pending_external_ai.get("failure_reason"),
+                        "suggested_user_action": pending_external_ai.get(
+                            "suggested_user_action"
+                        ),
+                    },
+                )
+                yield AgentEvent(
+                    "external_ai_pending_saved",
+                    {"task_id": task_id, "pending": pending_external_ai},
+                )
+                yield AgentEvent(
+                    "stopped",
+                    {
+                        "task_id": task_id,
+                        "reason": "external_ai_need_user",
+                        "resume_payload": {
+                            "task_id": task_id,
+                            "resume_from_task_id": task_id,
+                        },
+                    },
+                )
+                return
             for r in chain_results:
                 evidence_entries = self.evidence_board.save_from_result(
                     task_id, step_id, r
