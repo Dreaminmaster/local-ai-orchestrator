@@ -15,7 +15,15 @@ LOW_QUALITY_PATTERNS = {
         "注册",
         "继续使用",
     ],
-    "captcha": ["captcha", "verify", "challenge", "prove you", "人类", "验证"],
+    "captcha": [
+        "captcha",
+        "verify you are human",
+        "human verification",
+        "验证码",
+        "人机验证",
+        "安全验证",
+        "请验证你是真人",
+    ],
     "error_page": [
         "something went wrong",
         "try again",
