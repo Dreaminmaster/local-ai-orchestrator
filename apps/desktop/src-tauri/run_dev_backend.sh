@@ -15,7 +15,39 @@ export TMPDIR="$PROJECT_ROOT/runtime/tmp"
 
 mkdir -p "$PROJECT_ROOT/runtime/tmp" "$PROJECT_ROOT/runtime/logs"
 
-if curl -fsS --max-time 2 "$HEALTH_URL" >/dev/null 2>&1; then
+health_ok() {
+  if command -v curl >/dev/null 2>&1 && curl -fsS --max-time 2 "$HEALTH_URL" >/dev/null 2>&1; then
+    return 0
+  fi
+  python3 - "$HEALTH_URL" >/dev/null 2>&1 <<'PY'
+import sys
+import urllib.request
+
+url = sys.argv[1]
+with urllib.request.urlopen(url, timeout=2) as response:
+    raise SystemExit(0 if response.status == 200 else 1)
+PY
+}
+
+port_occupied() {
+  lsof -nP -iTCP:8422 -sTCP:LISTEN >/dev/null 2>&1
+}
+
+for _ in $(seq 1 10); do
+  if health_ok; then
+    echo "[desktop] backend already healthy at $HEALTH_URL"
+    while true; do sleep 3600; done
+  fi
+  sleep 0.2
+done
+
+if port_occupied; then
+  echo "[desktop] port 8422 is already occupied but $HEALTH_URL is not healthy; not starting a duplicate backend" >&2
+  lsof -nP -iTCP:8422 -sTCP:LISTEN >&2 || true
+  while true; do sleep 3600; done
+fi
+
+if health_ok; then
   echo "[desktop] backend already healthy at $HEALTH_URL"
   while true; do sleep 3600; done
 fi
@@ -43,7 +75,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 for _ in $(seq 1 80); do
-  if curl -fsS --max-time 2 "$HEALTH_URL" >/dev/null 2>&1; then
+  if health_ok; then
     echo "[desktop] backend healthy"
     wait "$BACKEND_PID"
     exit $?
