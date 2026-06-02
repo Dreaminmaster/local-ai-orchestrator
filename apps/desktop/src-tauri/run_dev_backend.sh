@@ -4,6 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 HEALTH_URL="http://127.0.0.1:8422/api/health"
+BACKEND_MODE="${LOCAL_AI_BACKEND_MODE:-python}"
+BINARY_PATH="$SCRIPT_DIR/bin/local-ai-orchestrator-backend"
 
 cd "$PROJECT_ROOT"
 
@@ -52,19 +54,39 @@ if health_ok; then
   while true; do sleep 3600; done
 fi
 
-if [ -x "$PROJECT_ROOT/venv/bin/python" ]; then
-  PY="$PROJECT_ROOT/venv/bin/python"
-elif [ -x "/Users/johnwick/Documents/codex/local-ai-orchestrator-main/venv/bin/python" ]; then
-  PY="/Users/johnwick/Documents/codex/local-ai-orchestrator-main/venv/bin/python"
-  echo "[desktop] using old success venv for dev shell: $PY"
+if [ "$BACKEND_MODE" = "binary" ]; then
+  if [ ! -x "$BINARY_PATH" ]; then
+    echo "[desktop] backend binary not found: $BINARY_PATH" >&2
+    echo "[desktop] run scripts/build_backend_binary.py after installing PyInstaller in an approved venv" >&2
+    exit 2
+  fi
+  echo "[desktop] starting backend binary: $BINARY_PATH"
+  "$BINARY_PATH" \
+    --host 127.0.0.1 \
+    --port 8422 \
+    --project-root "$PROJECT_ROOT" \
+    --runtime-dir "$PROJECT_ROOT/runtime" \
+    --playwright-browsers-path "$PROJECT_ROOT/.playwright-browsers" \
+    > "$PROJECT_ROOT/runtime/logs/tauri-backend.log" 2>&1 &
+  BACKEND_PID=$!
+elif [ "$BACKEND_MODE" = "python" ]; then
+  if [ -x "$PROJECT_ROOT/venv/bin/python" ]; then
+    PY="$PROJECT_ROOT/venv/bin/python"
+  elif [ -x "/Users/johnwick/Documents/codex/local-ai-orchestrator-main/venv/bin/python" ]; then
+    PY="/Users/johnwick/Documents/codex/local-ai-orchestrator-main/venv/bin/python"
+    echo "[desktop] using old success venv for dev shell: $PY"
+  else
+    echo "[desktop] Python venv not found. Create project venv separately; this script will not install dependencies." >&2
+    exit 2
+  fi
+
+  echo "[desktop] starting backend with $PY run.py"
+  "$PY" run.py > "$PROJECT_ROOT/runtime/logs/tauri-backend.log" 2>&1 &
+  BACKEND_PID=$!
 else
-  echo "[desktop] Python venv not found. Create project venv separately; this script will not install dependencies." >&2
+  echo "[desktop] unsupported LOCAL_AI_BACKEND_MODE=$BACKEND_MODE; expected python or binary" >&2
   exit 2
 fi
-
-echo "[desktop] starting backend with $PY run.py"
-"$PY" run.py > "$PROJECT_ROOT/runtime/logs/tauri-backend.log" 2>&1 &
-BACKEND_PID=$!
 
 cleanup() {
   if kill -0 "$BACKEND_PID" >/dev/null 2>&1; then

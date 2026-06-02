@@ -196,3 +196,195 @@ Requested non-live checks:
 - `node --check frontend/app.js`: PASS.
 
 Status: ready to ask for Rust/Tauri dev environment installation confirmation. No Rust, Cargo, Tauri CLI, or global dependency install was attempted.
+
+## Tauri Dev Smoke Result
+
+Generated: 2026-06-02T21:23:00+08:00
+
+This run did not install Rust, did not install global Tauri CLI, did not run live Claude, and did not test other providers.
+
+What succeeded:
+
+- `apps/desktop/npm install`: PASS.
+- Dependencies were installed only under `apps/desktop/node_modules`.
+- Project-local `@tauri-apps/cli`: available.
+- Project-local Tauri CLI version: `tauri-cli 2.11.2`.
+- `apps/desktop/package-lock.json`: generated and should be committed for reproducible desktop dev dependencies.
+- Backend `/api/health`: PASS, `"ok": true`.
+- Backend duplication check: PASS, only existing PID `55671` was listening on `8422`.
+- `node --check frontend/app.js`: PASS.
+- Borrowed old success venv with `PYTHONPATH` pointing to workspace-dev:
+  - `scripts/health_check.py`: PASS.
+  - `scripts/beta_validation.py`: PASS, live Claude skipped.
+
+What is blocked:
+
+- `rustc --version`: command not found in current shell.
+- `cargo --version`: command not found in current shell.
+- `npm run dev`: blocked because Tauri could not run `cargo metadata`.
+- Tauri desktop window did not open.
+- WebView did not load `http://127.0.0.1:8422` because the Tauri process exited before launch.
+
+Backend shutdown result:
+
+- Tauri dev did not start its own backend.
+- No duplicate backend was created.
+- The pre-existing workspace-dev backend remains running as PID `55671`.
+- No unrelated Python process was killed.
+
+Current readiness:
+
+- Not ready for Python backend sidecar binary design yet.
+- First resolve Rust/Cargo visibility in the active shell, then rerun Tauri dev smoke.
+- After Tauri WebView successfully opens and backend lifecycle behavior is verified, the project can enter Python backend sidecar binary design.
+
+## Tauri Dev Smoke With FlyEnv Rust
+
+Generated: 2026-06-02T21:48:00+08:00
+
+Rust/Cargo were provided by FlyEnv for the current command only:
+
+- `rustc 1.96.0 (ac68faa20 2026-05-25)`
+- `cargo 1.96.0 (30a34c682 2026-05-25)`
+- `rustc`: `/Users/johnwick/Library/FlyEnv/app/rust-1.96.0/bin/rustc`
+- `cargo`: `/Users/johnwick/Library/FlyEnv/app/rust-1.96.0/bin/cargo`
+
+Tauri dev smoke result: PASS.
+
+What was verified:
+
+- Project-local Tauri CLI was used.
+- No global Tauri CLI was installed.
+- `npm run dev` completed Rust dev compilation.
+- Tauri launched `target/debug/local-ai-orchestrator-desktop`.
+- Existing backend on port `8422` was detected as healthy and reused.
+- No duplicate backend remains.
+- `/api/health` returned `"ok": true`.
+
+Small dev shell fixes made:
+
+- Fixed Tauri `beforeDevCommand` script path.
+- Hardened backend reuse logic in `run_dev_backend.sh`.
+- Added a minimal development icon required by Tauri context generation.
+
+Current running processes:
+
+- Tauri dev node process: PID `99828`.
+- Tauri desktop app process: PID `99929`.
+- Backend process: PID `55671`.
+
+Generated local development artifacts:
+
+- `apps/desktop/node_modules/`
+- `apps/desktop/package-lock.json`
+- `apps/desktop/src-tauri/target/`
+
+Do not commit:
+
+- `apps/desktop/node_modules/`
+- `apps/desktop/src-tauri/target/`
+- `runtime/`
+- `venv/`
+- `.env`
+- `.playwright-browsers/`
+
+Commit candidate:
+
+- `apps/desktop/package-lock.json`
+- `apps/desktop/src-tauri/tauri.conf.json`
+- `apps/desktop/src-tauri/run_dev_backend.sh`
+- `apps/desktop/src-tauri/icons/icon.png`
+
+Readiness:
+
+- The project can now enter Python backend sidecar binary design.
+- It is still not a formal desktop installer because no sidecar binary, packaging, signing, notarization, updater, DMG, EXE, or MSI work has been done.
+
+## Backend Binary Prototype
+
+Generated: 2026-06-02T23:21:00+08:00
+
+Status: PASS.
+
+Completed:
+
+- Created `.build-venv` under workspace-dev.
+- Installed project requirements into `.build-venv`.
+- Installed PyInstaller into `.build-venv`.
+- Built backend binary prototype with PyInstaller.
+- Added sidecar CLI entry: `backend/sidecar_entry.py`.
+- Added build script: `scripts/build_backend_binary.py`.
+- Added `LOCAL_AI_BACKEND_MODE=python|binary` support to `run_dev_backend.sh`.
+
+Binary:
+
+- Path: `apps/desktop/src-tauri/bin/local-ai-orchestrator-backend`.
+- Size: about `74M`.
+- `--version`: PASS.
+- `--health-check-only`: PASS.
+- Direct `/api/health`: PASS.
+
+Tauri binary backend mode:
+
+- `LOCAL_AI_BACKEND_MODE=binary`: PASS.
+- Tauri launched the backend binary.
+- WebView loaded the product UI.
+- `/api/health` returned `"ok": true`.
+- No duplicate backend remained.
+- Closing Tauri stopped the binary backend it started.
+
+Existing backend reuse:
+
+- PASS.
+- Tauri reused a manually started healthy Python backend.
+- Closing Tauri did not kill that manually started backend.
+
+Non-live checks:
+
+- `.build-venv/bin/python scripts/health_check.py`: PASS.
+- `.build-venv/bin/python scripts/beta_validation.py`: PASS, live Claude skipped.
+- `node --check frontend/app.js`: PASS.
+
+Still not a formal installer:
+
+- No `tauri build`.
+- No `bundle.externalBin` final packaging.
+- No DMG/EXE/MSI.
+- No signing.
+- No notarization.
+- No updater.
+- Playwright browsers are not packaged.
+- Runtime location for installed apps is not finalized.
+
+Readiness:
+
+- Ready to enter formal sidecar bundle design.
+
+## Formal Sidecar Bundle Design
+
+Generated: 2026-06-02T23:35:00+08:00
+
+Status: design complete, implementation not started.
+
+Added:
+
+- `FORMAL_SIDECAR_BUNDLE_PLAN.md`
+
+Key decisions:
+
+- Keep runtime data out of the app bundle.
+- Keep browser profiles, evidence, reports, `.env`, and local DB files out of the bundle.
+- Do not automatically package Playwright browsers yet.
+- Use app data directory for installed runtime in a later phase.
+- Use Tauri `externalBin` with target-triple sidecar naming in a later phase.
+- Keep capabilities minimal and do not expose arbitrary shell execution.
+
+Current recommendation:
+
+- Do not run formal `tauri build` yet.
+- Next stage should be formal sidecar bundle pre-build preparation:
+  - target-triple sidecar naming
+  - installed runtime path implementation
+  - app data settings model
+  - Playwright browser provisioning UX
+  - sidecar permission review

@@ -203,3 +203,265 @@ Do not commit:
 5. Add Tauri `bundle.externalBin` with the target-triple sidecar name.
 6. Restrict shell/sidecar permissions in capabilities.
 7. Only then prepare DMG/EXE/MSI packaging.
+
+## Tauri Dev Smoke Attempt
+
+Generated: 2026-06-02T21:23:00+08:00
+
+Requested scope:
+
+- no Rust install
+- no global Tauri CLI install
+- no live Claude
+- no other provider tests
+- no PyInstaller
+- no DMG/EXE/MSI
+
+Environment versions observed from the current shell:
+
+| Tool | Result |
+|---|---|
+| `rustc --version` | missing from current shell PATH, `command not found` |
+| `cargo --version` | missing from current shell PATH, `command not found` |
+| `node --version` | `v25.9.0` |
+| `npm --version` | `11.12.1` |
+
+Additional Rust lookup:
+
+- `~/.cargo/bin/rustc`: not found
+- `~/.cargo/bin/cargo`: not found
+- `/opt/homebrew/bin/rustc`: not found
+- `/opt/homebrew/bin/cargo`: not found
+- `/usr/local/bin/rustc`: not found
+- `/usr/local/bin/cargo`: not found
+
+Desktop npm dependency install:
+
+- Command: `npm install`
+- Directory: `apps/desktop`
+- Result: PASS
+- Installed packages: 2
+- Vulnerabilities: 0
+- Dependency location: `apps/desktop/node_modules`
+- Global Tauri CLI used: no
+- Project-local `@tauri-apps/cli` used: yes
+- Project-local Tauri CLI version: `tauri-cli 2.11.2`
+- Generated `apps/desktop/package-lock.json`: yes
+- Recommendation: commit `apps/desktop/package-lock.json` so the project-local Tauri CLI version is reproducible; do not commit `apps/desktop/node_modules`.
+
+Backend before Tauri dev:
+
+- `/api/health`: HTTP 200, `"ok": true`
+- Listener: PID `55671`
+- Command: `Python`
+- Port: `8422`
+- Backend was already running, so no duplicate backend was started.
+
+Tauri dev command:
+
+```bash
+cd apps/desktop
+npm run dev
+```
+
+Result: BLOCKED
+
+Reason:
+
+```text
+failed to run 'cargo metadata' command to get workspace directory:
+failed to run command cargo metadata --no-deps --format-version 1:
+No such file or directory (os error 2)
+```
+
+Interpretation:
+
+- The project-local Tauri CLI starts correctly.
+- The Tauri dev window did not open.
+- The WebView did not launch.
+- The blocker is that `cargo` is not visible to the current shell.
+- No formal package build was attempted.
+
+Backend after Tauri dev attempt:
+
+- Listener remains PID `55671`.
+- No duplicate backend process was created.
+- Because Tauri dev did not start its own backend or WebView, there was no Tauri-started backend to clean up.
+- The pre-existing workspace-dev backend was not killed.
+
+Non-live checks after smoke attempt:
+
+- `python3 scripts/health_check.py`: FAIL with system Python because `httpx` is not installed in system Python.
+- Borrowed old success venv with `PYTHONPATH` pointing to workspace-dev:
+  - `scripts/health_check.py`: PASS
+  - `scripts/beta_validation.py`: PASS, live Claude skipped
+- `node --check frontend/app.js`: PASS
+
+Current conclusion:
+
+- Tauri dev smoke is not PASS yet.
+- Desktop window did not open.
+- Product Web UI remains available in browser/backend mode through `http://127.0.0.1:8422`.
+- To run Tauri dev, the next step is to make the already-installed Rust/Cargo visible to the shell, or complete Rust/Cargo installation if it did not actually place `cargo` on disk.
+- This is still not a formal installer because there is no sidecar binary, no bundle, no signing, no notarization, and no updater.
+
+## FlyEnv Rust Tauri Dev Smoke
+
+Generated: 2026-06-02T21:48:00+08:00
+
+Rust/Cargo were made visible only for the current commands with:
+
+```bash
+export PATH="/Users/johnwick/Library/FlyEnv/app/rust-1.96.0/bin:$PATH"
+```
+
+No shell profile, system environment, or global Tauri CLI installation was changed.
+
+Tool versions:
+
+| Tool | Result |
+|---|---|
+| `rustc --version` | `rustc 1.96.0 (ac68faa20 2026-05-25)` |
+| `cargo --version` | `cargo 1.96.0 (30a34c682 2026-05-25)` |
+| `which rustc` | `/Users/johnwick/Library/FlyEnv/app/rust-1.96.0/bin/rustc` |
+| `which cargo` | `/Users/johnwick/Library/FlyEnv/app/rust-1.96.0/bin/cargo` |
+| `node --version` | `v25.9.0` |
+| `npm --version` | `11.12.1` |
+
+Dev shell fixes made during smoke:
+
+- `apps/desktop/src-tauri/tauri.conf.json`: changed `beforeDevCommand` from `./run_dev_backend.sh` to `./src-tauri/run_dev_backend.sh`.
+- `apps/desktop/src-tauri/run_dev_backend.sh`: made backend reuse more conservative so an occupied port 8422 does not trigger a duplicate backend start.
+- `apps/desktop/src-tauri/icons/icon.png`: added a small development icon required by `tauri::generate_context!()`.
+
+Tauri dev run:
+
+```bash
+cd apps/desktop
+npm run dev
+```
+
+Result: PASS.
+
+Observed output:
+
+```text
+Finished `dev` profile [unoptimized + debuginfo] target(s)
+Running `target/debug/local-ai-orchestrator-desktop`
+[desktop] backend already healthy at http://127.0.0.1:8422/api/health
+```
+
+Current running dev processes:
+
+- Tauri dev node process: PID `99828`
+- Desktop app process: PID `99929`, `target/debug/local-ai-orchestrator-desktop`
+- Backend process: PID `55671`
+
+Backend lifecycle:
+
+- Existing backend was reused.
+- No duplicate backend remains.
+- `/api/health` returned `"ok": true`.
+- Backend listener after smoke: only PID `55671` on port `8422`.
+
+Generated development artifacts:
+
+- `apps/desktop/node_modules/`
+- `apps/desktop/package-lock.json`
+- `apps/desktop/src-tauri/target/`
+- Cargo registry/cache artifacts outside the project, created by the Rust dev build.
+
+Commit guidance:
+
+- Commit `apps/desktop/package-lock.json`.
+- Commit `apps/desktop/src-tauri/tauri.conf.json`.
+- Commit `apps/desktop/src-tauri/run_dev_backend.sh`.
+- Commit `apps/desktop/src-tauri/icons/icon.png`.
+- Do not commit `apps/desktop/node_modules/`.
+- Do not commit `apps/desktop/src-tauri/target/`.
+- Do not commit runtime data.
+
+Why this is still not a formal installer:
+
+- This was `tauri dev`, not `tauri build`.
+- No Python backend sidecar binary exists.
+- No PyInstaller step was run.
+- No DMG/EXE/MSI was produced.
+- No signing, notarization, updater, or release pipeline was configured.
+
+## Backend Binary Mode Smoke
+
+Generated: 2026-06-02T23:21:00+08:00
+
+Build environment:
+
+- `.build-venv`: `/Users/johnwick/Documents/codex/local-ai-orchestrator-workspace-dev/.build-venv`
+- PyInstaller: `6.20.0`
+- Binary: `apps/desktop/src-tauri/bin/local-ai-orchestrator-backend`
+- Binary size: about `74M`
+
+Tauri backend modes:
+
+- `LOCAL_AI_BACKEND_MODE=python`: Python dev backend mode.
+- `LOCAL_AI_BACKEND_MODE=binary`: backend sidecar prototype mode.
+
+Binary mode smoke result: PASS.
+
+Verified:
+
+- Tauri dev started with `LOCAL_AI_BACKEND_MODE=binary`.
+- `run_dev_backend.sh` launched the backend binary.
+- `/api/health` returned `"ok": true`.
+- WebView loaded the product UI.
+- No duplicate backend remained.
+- Closing Tauri stopped only the binary backend started by the script.
+- No backend process remained on `8422` after binary-mode close.
+
+Existing backend reuse result: PASS.
+
+Verified:
+
+- A manual Python backend was started.
+- Tauri dev was launched with `LOCAL_AI_BACKEND_MODE=binary`.
+- Tauri reused the existing healthy backend.
+- It did not start the binary.
+- Closing Tauri did not kill the manually started backend.
+- The manual test backend was stopped afterward as test cleanup.
+
+Current status:
+
+- Tauri dev shell can run against a Python backend or a prototype binary backend.
+- This is still not a formal installer: no `tauri build`, no `bundle.externalBin`, no DMG/EXE/MSI, no signing, no notarization, no updater.
+
+## Formal Sidecar Bundle Assessment
+
+Generated: 2026-06-02T23:35:00+08:00
+
+Formal sidecar bundle plan:
+
+`FORMAL_SIDECAR_BUNDLE_PLAN.md`
+
+Current status:
+
+- Tauri dev shell: PASS.
+- Binary backend dev mode: PASS.
+- Formal sidecar bundle: not ready.
+
+Why not ready:
+
+- `bundle.active=false`.
+- `bundle.externalBin` is absent.
+- Prototype binary is named `local-ai-orchestrator-backend`, not target-triple-specific.
+- Installed runtime directory is not implemented.
+- Playwright browser provisioning is not implemented.
+- `beforeDevCommand` is a dev shell mechanism, not a formal installed-app lifecycle manager.
+
+Do not run yet:
+
+- `npm run tauri build`
+- `cargo build --release` for release packaging
+- `tauri build`
+- DMG/EXE/MSI
+- signing
+- notarization
+- updater

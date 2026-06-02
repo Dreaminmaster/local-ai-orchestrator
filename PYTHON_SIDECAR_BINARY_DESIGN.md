@@ -1,22 +1,24 @@
 # Python Sidecar Binary Design
 
-Generated: 2026-06-02T22:05:00+08:00
+Generated: 2026-06-02T23:35:00+08:00
 
 Workspace:
 
 `/Users/johnwick/Documents/codex/local-ai-orchestrator-workspace-dev`
 
-Scope: design only. No PyInstaller run, no backend binary generation, no Tauri build, no DMG/EXE/MSI, no signing, no notarization, and no updater work has been performed.
+Scope: sidecar design and prototype notes. No Tauri formal build, no DMG/EXE/MSI, no signing, no notarization, and no updater work has been performed.
 
 ## 1. Current State
 
 - Tauri dev shell can open the local product UI.
 - Tauri dev uses the project-local `@tauri-apps/cli`, not a global Tauri CLI.
 - FlyEnv Rust/Cargo is available when the command PATH includes `/Users/johnwick/Library/FlyEnv/app/rust-1.96.0/bin`.
-- Current backend still depends on Python and a venv.
-- Current Tauri dev shell reuses an existing healthy backend on `http://127.0.0.1:8422`.
+- PyInstaller prototype binary has been generated locally at `apps/desktop/src-tauri/bin/local-ai-orchestrator-backend`.
+- The generated prototype binary is intentionally ignored and should not be committed without explicit approval.
+- Tauri dev shell can run with `LOCAL_AI_BACKEND_MODE=binary`.
+- Tauri dev shell also reuses an existing healthy backend on `http://127.0.0.1:8422`.
 - `/api/health` returns `"ok": true`.
-- This is not a formal installer. It is a development shell.
+- This is not a formal installer or formal Tauri bundle.
 
 ## 2. Sidecar Binary Goal
 
@@ -217,14 +219,32 @@ Do not do these in the sidecar design phase:
 - automatic Claude login
 - daily Chrome/Safari profile access
 
+## Prototype Result
+
+Backend binary prototype has passed:
+
+- `--version`: PASS.
+- `--health-check-only`: PASS.
+- direct binary `/api/health`: PASS.
+- Tauri dev `LOCAL_AI_BACKEND_MODE=binary`: PASS.
+- existing backend reuse: PASS.
+- close behavior: PASS, only the sidecar started by Tauri is stopped.
+
+Important prototype observations:
+
+- PyInstaller onefile uses a parent process and child server process on macOS.
+- Stopping the parent process group during Tauri dev cleanup stopped the child server cleanly.
+- Prototype binary size is about `74M`.
+- Runtime data, browser profiles, evidence, test reports, `.env`, and Playwright browsers were not embedded.
+
 ## Next Step
 
-After user confirmation, enter backend binary prototype phase:
+After user confirmation, enter formal sidecar bundle preparation:
 
-1. Draft a PyInstaller spec or command.
-2. Build a local prototype binary.
-3. Verify backend imports and `/api/health`.
-4. Wire Tauri dev to the prototype sidecar.
-5. Verify lifecycle behavior.
+1. Design Tauri `bundle.externalBin` naming and target-triple layout.
+2. Decide installed runtime directory for macOS and Windows.
+3. Replace dev-only project-root assumptions for installed mode.
+4. Keep Playwright browsers external/configurable until explicit provisioning design.
+5. Only then consider `tauri build` in a controlled pre-release build step.
 
 Only after that should formal installer packaging be considered.
