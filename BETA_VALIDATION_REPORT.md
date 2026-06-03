@@ -1,6 +1,6 @@
 # Beta Validation Report
 
-Generated: 2026-06-02T23:56:46.573840
+Generated: 2026-06-03T11:25:42.893814
 
 Overall: **PASS**
 
@@ -14,21 +14,21 @@ Overall: **PASS**
 
 ## Portable Mode
 
-- Project root: `/var/minis/workspace/local-ai-orchestrator`
-- venv: `/var/minis/workspace/local-ai-orchestrator/venv` (missing)
-- Playwright browsers: `/var/minis/workspace/local-ai-orchestrator/.playwright-browsers` (missing)
-- runtime: `/var/minis/workspace/local-ai-orchestrator/runtime` (exists)
-- PLAYWRIGHT_BROWSERS_PATH expected: `/var/minis/workspace/local-ai-orchestrator/.playwright-browsers`
+- Project root: `/Users/johnwick/Documents/codex/local-ai-orchestrator-workspace-dev`
+- venv: `/Users/johnwick/Documents/codex/local-ai-orchestrator-workspace-dev/venv` (missing)
+- Playwright browsers: `/Users/johnwick/Documents/codex/local-ai-orchestrator-workspace-dev/.playwright-browsers` (exists)
+- runtime: `/Users/johnwick/Documents/codex/local-ai-orchestrator-workspace-dev/runtime` (exists)
+- PLAYWRIGHT_BROWSERS_PATH expected: `/Users/johnwick/Documents/codex/local-ai-orchestrator-workspace-dev/.playwright-browsers`
 
 ## Checks
 
 | Check | Status | Command |
 |---|---:|---|
-| health_check | PASS | `/usr/bin/python3 scripts/health_check.py` |
-| repair_matrix | PASS | `/usr/bin/python3 scripts/e2e_agent_driven_repair_matrix.py` |
+| health_check | PASS | `/Users/johnwick/Documents/codex/local-ai-orchestrator-workspace-dev/.build-venv/bin/python scripts/health_check.py` |
+| repair_matrix | PASS | `/Users/johnwick/Documents/codex/local-ai-orchestrator-workspace-dev/.build-venv/bin/python scripts/e2e_agent_driven_repair_matrix.py` |
 | frontend_node_check | PASS | `node --check frontend/app.js` |
-| claude_extractor_unittest | PASS | `/usr/bin/python3 -m unittest tests/test_claude_answer_extractor_from_evidence.py` |
-| live_claude_workspace_e2e | SKIP | `/usr/bin/python3 scripts/e2e_claude_workspace_live.py` |
+| claude_extractor_unittest | PASS | `/Users/johnwick/Documents/codex/local-ai-orchestrator-workspace-dev/.build-venv/bin/python -m unittest tests/test_claude_answer_extractor_from_evidence.py` |
+| live_claude_workspace_e2e | SKIP | `/Users/johnwick/Documents/codex/local-ai-orchestrator-workspace-dev/.build-venv/bin/python scripts/e2e_claude_workspace_live.py` |
 
 ## Repair Matrix
 
@@ -206,7 +206,6 @@ stdout tail:
 stderr tail:
 
 ```text
-Warning: disabling flag --expose_wasm due to conflicting flags
 
 ```
 
@@ -226,7 +225,7 @@ stderr tail:
 ```text
 ....
 ----------------------------------------------------------------------
-Ran 4 tests in 0.134s
+Ran 4 tests in 0.005s
 
 OK
 

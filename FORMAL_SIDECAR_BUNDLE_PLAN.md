@@ -238,6 +238,23 @@ Before DMG/EXE/MSI:
 `apps/desktop/src-tauri/run_dev_backend.sh`:
 
 - Good for dev smoke.
+
+## v0.2.3 Formal Sidecar Prep Update
+
+Generated: 2026-06-03T00:00:00+08:00
+
+Prepared but did not build:
+
+- Host target confirmed as `x86_64-apple-darwin`.
+- Added `scripts/prepare_tauri_sidecar_binary.py` to copy the prototype backend binary into Tauri target-triple naming.
+- Added `.gitignore` coverage for `apps/desktop/src-tauri/bin/local-ai-orchestrator-backend-*`.
+- Reserved `bundle.externalBin=[]` while keeping `bundle.active=false`.
+- Added `backend/runtime_paths.py` for dev/installed/custom runtime path calculation.
+- Added `backend/settings_store.py` for non-secret `settings.json` defaults.
+- Added `GET /api/playwright/status` for browser provisioning detection without automatic download.
+- Frontend now displays project-only browser status and missing-browser guidance.
+
+Formal build configuration should still wait until a controlled Tauri build smoke phase. Do not commit the generated backend binary or target-triple sidecar binary.
 - Supports `LOCAL_AI_BACKEND_MODE=python|binary`.
 - Uses project-local runtime paths.
 - Not an installed-app lifecycle manager.

@@ -248,3 +248,30 @@ After user confirmation, enter formal sidecar bundle preparation:
 5. Only then consider `tauri build` in a controlled pre-release build step.
 
 Only after that should formal installer packaging be considered.
+
+## v0.2.3 Runtime and Formal Prep Addendum
+
+Generated: 2026-06-03T00:00:00+08:00
+
+Formal sidecar build preparation added these design pieces:
+
+- unified runtime path resolver in `backend/runtime_paths.py`
+- sidecar entry default path calculation through runtime paths
+- settings file model in `backend/settings_store.py`
+- project browser provisioning status through `GET /api/playwright/status`
+- target-triple sidecar preparation script in `scripts/prepare_tauri_sidecar_binary.py`
+- reserved Tauri `bundle.externalBin=[]` while keeping `bundle.active=false`
+
+Installed runtime remains outside the app bundle:
+
+- macOS: `~/Library/Application Support/Local AI Orchestrator/`
+- Windows: `%APPDATA%/Local AI Orchestrator/`
+- Linux: `~/.local/share/local-ai-orchestrator/`
+
+Still out of scope:
+
+- enabling `tauri build`
+- bundling Playwright browsers
+- bundling `.env`
+- storing API keys or provider credentials in `settings.json`
+- committing generated sidecar binaries

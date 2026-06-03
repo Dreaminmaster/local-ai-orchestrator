@@ -388,3 +388,161 @@ Current recommendation:
   - app data settings model
   - Playwright browser provisioning UX
   - sidecar permission review
+
+## v0.2.3 Formal Sidecar Build Prep
+
+Generated: 2026-06-03T00:00:00+08:00
+
+Completed:
+
+- Host target triple checked with FlyEnv Rust: `x86_64-apple-darwin`.
+- Target-triple sidecar preparation script added.
+- Tauri config now reserves `bundle.externalBin=[]` while keeping `bundle.active=false`.
+- Runtime path model added for dev/custom/installed modes.
+- Non-secret `settings.json` store added.
+- Playwright browser provisioning status API added.
+- Frontend project browser status section added.
+- Tauri capability review remains minimal: `core:default` only.
+
+Still not done:
+
+- no `tauri build`
+- no DMG/EXE/MSI
+- no signing or notarization
+- no updater
+- no automatic Playwright browser provisioning
+- no committed backend binary
+
+## Tauri Build Smoke Update
+
+Generated: 2026-06-03T01:30:00+08:00
+
+Progress:
+
+- `aarch64-apple-darwin` sidecar naming issue fixed.
+- Tauri `.app` build completed successfully.
+- `.app` launches the desktop process and bundled backend sidecar.
+- Packaged sidecar reaches Uvicorn and logs `/api/health` `200 OK`.
+- App data runtime path is used instead of project `runtime/`.
+
+Still partial:
+
+- packaged health probe now has hard timeouts and no longer relies on a curl loop.
+- frontend readiness marker and `/api/ui-ready` were added.
+- normal app quit cleanup passed for the app-started sidecar PID.
+- latest packaged PyInstaller onefile sidecar did not reach Uvicorn within 180 seconds.
+- WebView UI readiness remains blocked by sidecar startup reliability.
+
+Current status:
+
+- Tauri build: PASS.
+- Runtime smoke: PARTIAL.
+- Not ready to tag/sync as a stable build-smoke milestone yet.
+
+## Onedir Packaged Sidecar Diagnostic
+
+Generated: 2026-06-03
+
+Completed:
+
+- Backend build script supports `--mode onefile` and `--mode onedir`.
+- Onedir backend directly reaches Uvicorn and `/api/health`.
+- Packaged Tauri launcher records sidecar command, arguments, environment,
+  working directory, PID, stdout path, and stderr path.
+- Packaged Tauri launcher selected the workspace-known onedir executable.
+- Packaged onedir sidecar reached `/api/health`.
+- Packaged onedir sidecar shut down gracefully on app exit.
+- Final port `8422` and packaged process checks were clean.
+
+Current conclusion:
+
+- Onefile is not recommended as the current v0.2.x packaged sidecar prototype.
+- Onedir is the recommended backend sidecar direction for the next prototype.
+- Overall packaged runtime smoke remains PARTIAL because the WebView did not
+  report the UI readiness marker before the desktop process exited.
+- The next focused task is WebView load/navigation timing, not provider work or
+  backend sidecar startup.
+- This state is not ready for GitHub sync, tag, unsigned macOS app prototype,
+  or formal installer work.
+
+## Unsigned macOS App Prototype Readiness
+
+Generated: 2026-06-03
+
+The final packaged runtime smoke passed after removing the unnecessary WebView
+navigation to the frozen backend root. The Tauri bundled frontend now remains
+loaded while it calls the sidecar API on localhost.
+
+Verified:
+
+- Tauri build: PASS
+- packaged onedir sidecar: PASS
+- backend `/api/health`: PASS
+- WebView created: PASS
+- frontend readiness POST: PASS
+- health panel rendered: PASS
+- desktop shell mode reported as `packaged / tauri`
+- app-owned sidecar shutdown: PASS
+- final `8422` listener: none
+- final runtime smoke: PASS
+
+Current status:
+
+- Ready to enter unsigned macOS app prototype planning.
+- Ready to prepare a synchronization checkpoint.
+- Not ready for DMG, signing, notarization, updater, or formal release.
+
+## Unsigned DMG Smoke
+
+Generated: 2026-06-03
+
+Result: **PASS**
+
+Verified:
+
+- unsigned DMG generated with `hdiutil`
+- DMG mounted successfully
+- `.app` and Applications symlink present
+- app copied to a temporary Applications test directory
+- copied app launched
+- onedir sidecar started
+- `/api/health` passed
+- UI readiness and health panel rendering passed
+- app-owned sidecar exited
+- port `8422` had no residue
+- DMG and temporary install cleanup completed
+
+Security result:
+
+- app is not signed
+- `spctl` rejected it with `no usable signature`
+- no Gatekeeper bypass or system security change was performed
+
+Prototype limitation:
+
+- the temporary install path remained inside workspace-dev
+- the copied app still used the workspace-known onedir sidecar
+- formal DMG design must bundle the complete onedir tree inside App resources
+
+The product shell can enter formal DMG design, but not formal release.
+
+## DMG Portable Independence
+
+Generated: 2026-06-03
+
+Result: **PASS**
+
+- complete onedir backend sidecar bundled inside App resources
+- isolated app copy launched outside workspace-dev
+- packaged launcher used `bundled_onedir_resource`
+- project root, runtime, settings, database, and Playwright paths use app data
+- health and main logs contained no workspace-dev dependency
+- UI readiness passed
+- sidecar shutdown passed
+- port `8422` had no residue
+
+Current status:
+
+- locally movable unsigned DMG prototype: ready
+- formal DMG release preparation: ready
+- signing, notarization, updater, and public release: not started

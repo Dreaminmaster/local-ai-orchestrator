@@ -354,3 +354,39 @@ Formal bundle readiness:
 - Installed runtime path model: designed, not implemented.
 - Playwright browser provisioning: designed, not implemented.
 - Formal Tauri build: intentionally not run.
+
+## Onedir Prototype Follow-Up
+
+Generated: 2026-06-03
+
+`scripts/build_backend_binary.py` now supports:
+
+```bash
+.build-venv/bin/python scripts/build_backend_binary.py --mode onefile
+.build-venv/bin/python scripts/build_backend_binary.py --mode onedir
+```
+
+The onedir output is:
+
+```text
+apps/desktop/src-tauri/bin/local-ai-orchestrator-backend-dir/
+apps/desktop/src-tauri/bin/local-ai-orchestrator-backend-dir/local-ai-orchestrator-backend
+```
+
+Validation:
+
+- onedir `--version`: PASS
+- onedir `--health-check-only`: PASS
+- onedir direct Uvicorn startup: PASS
+- onedir direct `/api/health`: PASS
+- packaged Tauri launcher selecting onedir: PASS
+- packaged sidecar health ready: PASS
+- packaged sidecar graceful shutdown: PASS
+
+The onefile packaged startup failure is inferred to occur before the Python
+entry point, because its sidecar log remained empty and it did not reach
+Uvicorn within 180 seconds. The onedir startup exposes Python entry logs and
+reaches health in approximately 14 seconds.
+
+Current recommendation: use onedir for the v0.2.x packaged sidecar prototype,
+while keeping formal bundle layout and WebView readiness work separate.
