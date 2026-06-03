@@ -546,3 +546,24 @@ Current status:
 - locally movable unsigned DMG prototype: ready
 - formal DMG release preparation: ready
 - signing, notarization, updater, and public release: not started
+
+## First Run Experience And Local Support
+
+Generated: 2026-06-03
+
+Completed:
+
+- API-driven first run status page
+- app data status and open-directory actions
+- diagnostics package export
+- conservative cache cleanup
+- explicit provider profile reset confirmation
+- Playwright browser missing notice without automatic download
+- packaged app smoke for health, UI readiness, diagnostics, cleanup, and
+  sidecar shutdown
+
+Current status:
+
+- user-testable unsigned DMG: ready
+- terminal-free first run support: available
+- formal public release: not ready

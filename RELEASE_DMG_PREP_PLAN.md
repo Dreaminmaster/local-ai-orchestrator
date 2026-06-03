@@ -17,6 +17,14 @@ The macOS prototype has reached a locally movable unsigned DMG checkpoint:
 
 The packaged launcher uses `bundled_onedir_resource`.
 
+The first-run product support layer is also available:
+
+- first-run status panel: PASS
+- app data status and open-directory action: PASS
+- user-controlled diagnostic export: PASS
+- safe cache cleanup: PASS
+- Playwright Chromium missing-state guidance: PASS
+
 ## Why This Is Not A Formal Release
 
 The current artifact is intentionally unsigned and not notarized. Gatekeeper
@@ -37,9 +45,13 @@ The intended first-launch flow is:
 5. App starts its bundled backend sidecar if no healthy backend is already
    running.
 6. Bundled frontend loads and renders backend health.
-7. UI reports missing local prerequisites such as LM Studio or Playwright
+7. First Run / Setup status shows backend, app data, Playwright Chromium,
+   provider workspace, LM Studio, Ollama, and shell mode state.
+8. UI reports missing local prerequisites such as LM Studio or Playwright
    Chromium without silently installing them.
-8. User opens an External AI Workspace only when needed and handles login or
+9. User can open the app data directory, export a sanitized diagnostic package,
+   or clear safe caches.
+10. User opens an External AI Workspace only when needed and handles login or
    verification manually.
 
 The app must not access daily Chrome or Safari profiles.
@@ -103,15 +115,27 @@ Playwright browsers are not bundled in the current DMG.
 When Chromium is missing:
 
 - `/api/playwright/status` reports the configured path and missing state
-- UI displays `需要安装项目专用浏览器`
+- UI displays `项目专用浏览器未安装。外部 AI 网页控制可能不可用。`
+- UI offers `查看安装说明` and `暂不安装`
 - External AI Workspace actions explain why they are unavailable
-- UI offers a future explicit download action
 - no browser download starts automatically
 - downloaded browsers must remain isolated under app data
 
 ## Local Data Cleanup And Reset
 
 The product should offer two levels of cleanup:
+
+### Clear Safe Caches
+
+`POST /api/app-data/clear-cache` removes only:
+
+- runtime temporary files
+- local test reports
+- pip cache, if present
+- old logs beyond the retained recent set
+
+It preserves `settings.json`, provider browser profiles, evidence, tasks, user
+files, and provider login state.
 
 ### Reset External AI Workspace
 
@@ -132,16 +156,16 @@ other Playwright caches.
 
 ## Diagnostic Package Export
 
-Add a future user-controlled diagnostic export action that creates a zip with:
+`POST /api/diagnostics/export` now creates a user-controlled zip under the app
+data `diagnostics/` directory with:
 
-- app version and platform
 - `/api/health` snapshot
 - Playwright status snapshot
 - sanitized `settings.json`
-- desktop main log
-- sidecar stdout and stderr logs
-- recent task metadata
-- recent error summaries
+- app data status
+- provider status
+- recent desktop and sidecar logs
+- beta validation summary when available
 
 The diagnostic package must exclude:
 
@@ -213,12 +237,13 @@ Windows work should follow after the macOS release path is stable:
 
 ## Recommended Next Milestone
 
-The next milestone is formal DMG release preparation, focused on:
+The unsigned DMG is now suitable for user testing on the current Mac. The next
+formal release preparation milestone should focus on:
 
 - clean-machine validation
-- first-launch UX
-- diagnostics export design
-- local data reset UX
+- support documentation for the first-run status page
+- diagnostics review and privacy documentation
+- full local data removal UX
 - signing and notarization readiness review
 
 It is not yet a formal release build.

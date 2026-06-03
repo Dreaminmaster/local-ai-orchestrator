@@ -139,3 +139,22 @@ validated on a clean second Mac, and has no final release packaging, signing,
 or updater workflow.
 
 The next stage can enter formal DMG release preparation.
+
+## First Run Product Experience Follow-Up
+
+Generated: 2026-06-03
+
+The packaged app now includes a first run status panel and local support
+actions. Packaged smoke verified:
+
+- app data path display and open action
+- diagnostics export
+- safe cache cleanup
+- Playwright browser missing notice
+- health and UI readiness
+- sidecar shutdown and no port residue
+
+The new APIs continue to use app data paths and do not reintroduce a
+workspace-dev dependency.
+
+See `FIRST_RUN_EXPERIENCE_REPORT.md`.
