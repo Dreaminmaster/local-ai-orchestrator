@@ -96,3 +96,46 @@ New final DMG:
 - Rollback API: PASS
 - Sidecar shutdown: PASS
 - Port 8422 and 8423 residue: none
+
+## Provider Workspace Console + Real Repair Verification Sprint - 2026-06-20
+
+Status: SOURCE FIX PASS, DMG NOT REBUILT
+
+This sprint corrected two real-machine acceptance failures found after the
+arm64 final DMG:
+
+- Claude minimal short answer `连接正常`: PASS_WITH_WARNING using reliable selector `[class*='font-claude']`.
+- Kimi minimal short answer `连接正常`: PASS using reliable selector `.markdown`.
+- Body/sidebar fallback remains disallowed for PASS.
+- Real project verification now runs `python3 main.py` when present, in addition
+  to `compileall`.
+- `compileall` PASS plus runtime `ModuleNotFoundError` now returns FAILED and
+  the report states that the runtime entry still failed.
+- Provider Workspace Console was added for App-managed workspace status,
+  prompt/answer/evidence summaries, and one-window-per-provider control.
+
+Important: the existing final DMG above does not yet contain this sprint's
+source fixes. Rebuild and smoke-test a new unsigned arm64 DMG before calling the
+installed artifact updated.
+
+## Provider Console Arm64 Rebuild - 2026-06-20
+
+Status: PASS
+
+The provider console, short-answer extraction / quality fixes, and Python
+runtime-entry verification fixes are now packaged in a new arm64 unsigned DMG:
+
+`/Users/johnwick/Documents/codex/local-ai-orchestrator-chat-artifacts-20260612/generated-artifacts/Local-AI-Orchestrator-final-complete-arm64-provider-console-unsigned.dmg`
+
+- Size: `176017936` bytes
+- SHA-256: `a3da1f80e76d7efaf4e16d69b712529c77c2d56a96273cec7e3b9a80c4ad50a8`
+- Architecture audit: PASS, `84` Mach-O files scanned, `0` x86_64-only
+- `/api/health`: PASS
+- `/api/ui-ready`: PASS
+- Provider Workspace Console packaged API: PASS
+- Local task smoke: PASS
+- ImportError runtime-entry regression: PASS
+- Sidecar shutdown: PASS
+- Port 8422 and 8423 residue: none
+
+This provider-console DMG is now the recommended main self-use artifact.

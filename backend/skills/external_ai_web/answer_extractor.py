@@ -72,6 +72,7 @@ class AnswerExtractor:
         self.warning_text = ""
         self.warning_class = ""
         self.answer_timestamp = ""
+        self.message_index = -1
 
     async def wait_complete(self, page, timeout: int = 180) -> bool:
         last = ""
@@ -102,6 +103,7 @@ class AnswerExtractor:
         self.warning_text = ""
         self.warning_class = ""
         self.answer_timestamp = ""
+        self.message_index = -1
         if provider == "claude":
             return await self._latest_claude(page, exclude_text)
         selectors = self._selectors(provider)
@@ -222,6 +224,7 @@ class AnswerExtractor:
         if best:
             best["record"]["chosen"] = True
             self.used_selector = best["selector"]
+            self.message_index = best.get("ordinal", -1)
             self.answer_timestamp = datetime.now().isoformat()
             await self._capture_page_warning(page, reliable_answer=True)
             return best["text"]
@@ -312,7 +315,7 @@ class AnswerExtractor:
         return "\n".join(lines).strip()
 
     def _is_probable_answer(self, text: str, exclude_text: str = "") -> bool:
-        if len((text or "").strip()) < 20:
+        if len((text or "").strip()) < 4:
             return False
         if exclude_text and text.strip() == exclude_text.strip():
             return False
@@ -337,8 +340,6 @@ class AnswerExtractor:
     ) -> tuple[int, str]:
         text = (text or "").strip()
         lower = text.lower()
-        if len(text) < 30:
-            return 0, "too_short"
         if exclude_text:
             prompt = exclude_text.strip()
             if text == prompt or prompt in text:
@@ -357,13 +358,21 @@ class AnswerExtractor:
         if lower.count("\n") > 18 and sidebar_hits >= 2:
             return 0, "mixed_page_chrome"
 
+        short_reliable = self._is_short_reliable_answer(text, selector, ordinal, total)
+        if len(text) < 30 and not short_reliable:
+            return 0, "too_short"
+
         score = min(len(text), 1400) // 20
         if in_main:
             score += 25
         if "article" in selector or "message" in selector or "font-claude" in selector:
             score += 15
+        if "markdown" in selector:
+            score += 15
         if total > 0 and ordinal >= total - 3:
             score += 10
+        if short_reliable:
+            score += 40
         if sidebar_hits:
             score -= sidebar_hits * 8
         if len(text) > 3500:
@@ -372,6 +381,36 @@ class AnswerExtractor:
         if score < minimum_score:
             return score, "low_score"
         return score, ""
+
+    def _is_short_reliable_answer(
+        self, text: str, selector: str, ordinal: int, total: int
+    ) -> bool:
+        """Allow minimal live-test answers from reliable message selectors only."""
+        stripped = (text or "").strip()
+        if len(stripped) < 4 or len(stripped) > 80:
+            return False
+        selector_lower = selector.lower()
+        reliable_selector = any(
+            token in selector_lower
+            for token in [
+                "message",
+                "font-claude",
+                "markdown",
+                "article",
+                "model-response",
+                "message-content",
+            ]
+        )
+        if not reliable_selector:
+            return False
+        if total > 0 and ordinal < max(0, total - 3):
+            return False
+        lower = stripped.lower()
+        if any(hint in lower for hint in self.NAV_HINTS):
+            return False
+        if any(hint in lower for hint in self.PAGE_ERROR_HINTS):
+            return False
+        return True
 
     async def _capture_page_warning(self, page, *, reliable_answer: bool) -> None:
         try:

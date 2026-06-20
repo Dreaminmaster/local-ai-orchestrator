@@ -104,6 +104,7 @@ const els = {
   providerWizardProgress: document.getElementById("providerWizardProgress"),
   providerPriorityList: document.getElementById("providerPriorityList"),
   taskProviderSummary: document.getElementById("taskProviderSummary"),
+  providerWorkspaceConsole: document.getElementById("providerWorkspaceConsole"),
 };
 
 async function init() {
@@ -119,6 +120,7 @@ async function init() {
   await loadWebAiMatrix();
   await loadPlaywrightStatus();
   await loadProviderServices();
+  await loadProviderWorkspaceConsole();
   renderFirstRunStatus();
   await refreshWorkspaceStatus("claude");
   initCapabilities();
@@ -1927,8 +1929,9 @@ async function openWebAiWorkspace(provider, sourceButton = null) {
       if (data.failure_code) {
         log(workspaceFailureLabel(data.failure_code, data.failure_reason), "error", "⚠", new Date().toLocaleTimeString());
       } else {
-        log(`${provider} 工作区状态：${data.workspace_state || data.state}`, "success", "✓", new Date().toLocaleTimeString());
+        log(`${providerNames[provider] || provider} 工作区状态：${data.workspace_state || data.state}（已打开则聚焦已有窗口）`, "success", "✓", new Date().toLocaleTimeString());
       }
+      await loadProviderWorkspaceConsole();
       return data;
     } catch (error) {
       const data = {
@@ -1955,6 +1958,7 @@ async function closeWebAiWorkspace(provider) {
   const res = await fetch(`${API_BASE}/api/web-ai/workspace/${provider}/close`, { method: "POST" });
   const data = await res.json();
   renderWorkspaceStatus(data);
+  await loadProviderWorkspaceConsole();
 }
 
 async function refreshWorkspaceStatus(provider) {
@@ -1963,9 +1967,64 @@ async function refreshWorkspaceStatus(provider) {
     const res = await fetch(`${API_BASE}/api/web-ai/workspace/${provider}/status`);
     const data = await res.json();
     renderWorkspaceStatus(data);
+    await loadProviderWorkspaceConsole();
   } catch (e) {
     els.webAiWorkspaceStatus.innerHTML = `<p class="placeholder">状态加载失败: ${escapeHtml(e.message)}</p>`;
   }
+}
+
+async function openAllProviderWorkspaces() {
+  for (const provider of ["claude", "chatgpt", "gemini", "kimi", "doubao"]) {
+    await openWebAiWorkspace(provider);
+  }
+}
+
+async function loadProviderWorkspaceConsole() {
+  if (!els.providerWorkspaceConsole) return;
+  try {
+    const data = await fetch(`${API_BASE}/api/web-ai/workspaces/console`).then((res) => res.json());
+    const providers = data.providers || {};
+    const providerOrder = ["claude", "chatgpt", "gemini", "kimi", "doubao"];
+    els.providerWorkspaceConsole.innerHTML = `<div class="provider-console-summary">
+      <span>启用工作区：${Number(data.enabled_count || 0)}</span>
+      <span>已登录/可用：${Number(data.logged_in_count || 0)}</span>
+      <span>可路由：${Number(data.route_ready_count || 0)}</span>
+      <span>当前使用：${escapeHtml(providerNames[data.active_provider] || data.active_provider || "无")}</span>
+    </div>
+    ${providerOrder.map((provider) => renderProviderWorkspaceConsoleCard(provider, providers[provider] || { provider })).join("")}`;
+  } catch (error) {
+    els.providerWorkspaceConsole.innerHTML = `<p class="placeholder">工作区控制台加载失败：${escapeHtml(error.message)}</p>`;
+  }
+}
+
+function renderProviderWorkspaceConsoleCard(provider, data) {
+  const state = data.workspace_state || data.state || "UNKNOWN";
+  const exchange = data.exchange || {};
+  const quality = exchange.quality_result || {};
+  const needsUser = data.need_user_intervention || ["NEED_LOGIN", "NEED_USER_INTERVENTION", "STALE_CONVERSATION", "PAGE_NETWORK_ERROR"].includes(state);
+  return `<article class="provider-console-card workspace-state-${escapeHtml(String(state).toLowerCase())}">
+    <header>
+      <div><strong>${escapeHtml(providerNames[provider] || provider)}</strong><small>${escapeHtml(workspaceStateLabel(state))}</small></div>
+      <span>${data.active_request_id ? "正在回答" : "空闲"}</span>
+    </header>
+    <div class="provider-console-actions">
+      <button class="btn-secondary" data-workspace-open="${provider}" onclick="openWebAiWorkspace('${provider}', this)">打开/聚焦工作区</button>
+      <button class="btn-secondary" onclick="refreshWorkspaceStatus('${provider}')">重新检测</button>
+      <button class="btn-secondary" onclick="runProviderLiveMinimal('${provider}')">测试连接</button>
+      <button class="btn-secondary" onclick="closeWebAiWorkspace('${provider}')">关闭工作区</button>
+    </div>
+    ${needsUser ? `<p class="warning-text">需要用户处理：${escapeHtml(data.failure_reason || workspaceStateLabel(state))}</p>` : ""}
+    <dl>
+      <dt>当前 URL</dt><dd>${escapeHtml(data.current_url || data.page_url || "—")}</dd>
+      <dt>窗口所有者</dt><dd>${escapeHtml(data.owner_type || "—")} ${data.owner_pid ? `PID ${escapeHtml(String(data.owner_pid))}` : ""}</dd>
+      <dt>复用状态</dt><dd>workspace_reused=${data.workspace_reused ? "true" : "false"} · second_context=${data.second_context_created ? "true" : "false"}</dd>
+      <dt>最近 prompt</dt><dd>${escapeHtml(exchange.last_prompt || "—")}</dd>
+      <dt>最近回答</dt><dd>${escapeHtml(exchange.last_answer_preview || "—")}</dd>
+      <dt>质量</dt><dd>${escapeHtml(quality.quality || "—")} ${quality.reason ? `· ${escapeHtml(quality.reason)}` : ""}</dd>
+      <dt>warning</dt><dd>${escapeHtml(exchange.warning_class || "—")} ${exchange.warning_text ? `· ${escapeHtml(exchange.warning_text)}` : ""}</dd>
+      <dt>evidence</dt><dd>${escapeHtml(exchange.evidence_path || "—")}</dd>
+    </dl>
+  </article>`;
 }
 
 function workspaceStateLabel(state) {

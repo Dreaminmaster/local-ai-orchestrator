@@ -176,6 +176,68 @@ class ClaudeAnswerExtractorEvidenceTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(extractor.warning_class, "non_blocking_warning")
         self.assertIn("currently unavailable", extractor.warning_text)
 
+    async def test_claude_minimal_short_answer_from_reliable_selector_passes(self):
+        page = _FakePage(
+            {"[class*='font-claude']": ["连接正常"]},
+            "Claude\n连接正常\nClaude Fable 5 is currently unavailable.\nLearn more",
+        )
+        extractor = AnswerExtractor()
+
+        extracted = await extractor.latest(page, "claude", "请只回复：连接正常")
+        quality = AnswerQualityChecker().check(
+            extracted,
+            reliable_answer=not extractor.used_body_fallback,
+            warning_text=extractor.warning_text,
+            warning_class=extractor.warning_class,
+        )
+
+        self.assertEqual(extracted, "连接正常")
+        self.assertEqual(extractor.used_selector, "[class*='font-claude']")
+        self.assertEqual(quality["quality"], "PASS_WITH_WARNING")
+
+    async def test_kimi_minimal_short_answer_from_markdown_selector_passes(self):
+        page = _FakePage(
+            {".markdown": ["连接正常"]},
+            "Kimi\n侧栏\n连接正常",
+        )
+        extractor = AnswerExtractor()
+
+        extracted = await extractor.latest(page, "kimi", "请只回复：连接正常")
+        quality = AnswerQualityChecker().check(
+            extracted,
+            reliable_answer=not extractor.used_body_fallback,
+            warning_text=extractor.warning_text,
+            warning_class=extractor.warning_class,
+        )
+
+        self.assertEqual(extracted, "连接正常")
+        self.assertEqual(extractor.used_selector, ".markdown")
+        self.assertEqual(quality["quality"], "PASS")
+
+    async def test_body_fallback_short_answer_still_fails(self):
+        page = _FakePage({}, "New chat\nRecents\n连接正常\nSettings")
+        extractor = AnswerExtractor()
+
+        extracted = await extractor.latest(page, "kimi", "请只回复：连接正常")
+        quality = AnswerQualityChecker().check(
+            extracted,
+            reliable_answer=not extractor.used_body_fallback,
+        )
+
+        self.assertTrue(extractor.used_body_fallback)
+        self.assertEqual(quality["quality"], "FAIL")
+
+    async def test_old_short_answer_not_near_latest_message_fails(self):
+        page = _FakePage(
+            {".markdown": ["连接正常", "另一个旧回答", "最新回答还在生成中", "Thinking..."]},
+            "连接正常\n最新回答还在生成中\nThinking...",
+        )
+        extractor = AnswerExtractor()
+
+        extracted = await extractor.latest(page, "kimi", "请只回复：连接正常")
+
+        self.assertNotEqual(extracted, "连接正常")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -273,6 +273,19 @@
                 <h3>未启用</h3>
                 <div id="disabledWebProviderCards" class="provider-card-grid"><p class="placeholder">正在加载...</p></div>
             </section>
+            <section class="provider-console">
+                <header class="provider-console-header">
+                    <div>
+                        <h3>AI 工作区控制台</h3>
+                        <p>统一管理项目专用网页 AI 工作区。网页本身由受控 Chromium 窗口承载，App 内显示状态、prompt、回答和 evidence 摘要。</p>
+                    </div>
+                    <div class="provider-card-actions">
+                        <button class="btn-secondary" onclick="loadProviderWorkspaceConsole()">刷新控制台</button>
+                        <button class="btn-secondary" onclick="openAllProviderWorkspaces()">打开/聚焦所有工作区</button>
+                    </div>
+                </header>
+                <div id="providerWorkspaceConsole" class="provider-console-grid"><p class="placeholder">正在加载工作区状态...</p></div>
+            </section>
             <details>
                 <summary>高级信息：Provider 能力矩阵</summary>
                 <div id="productProviderMatrix" class="web-ai-matrix"><p class="placeholder">正在加载...</p></div>

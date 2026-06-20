@@ -225,6 +225,21 @@ class WebAISkill(Skill):
                 metadata=run_metadata,
             )
             evidence.append(run_evidence)
+            try:
+                workspace_manager.record_exchange(
+                    provider,
+                    prompt=prompt,
+                    answer=result_text,
+                    quality=quality_check_meta,
+                    evidence_path=run_evidence,
+                    selector=(response.metadata or {}).get("extract", {}).get("used_selector", ""),
+                    warning_text=(response.metadata or {}).get("extract", {}).get("warning_text", ""),
+                    warning_class=(response.metadata or {}).get("extract", {}).get("warning_class", ""),
+                    task_id=context.get("task_id", ""),
+                    step_id=context.get("step_id", ""),
+                )
+            except Exception:
+                pass
             if response.needs_login:
                 failure_reason = (
                     "claude_login_required" if provider == "claude" else "provider_login_required"

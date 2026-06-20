@@ -59,3 +59,18 @@ Provider product integration is **PARTIAL**: packaged behavior passed, but curre
 - New App Bundle recursive Mach-O audit: PASS.
 - Installed-copy recursive Mach-O audit: PASS.
 - The current self-use artifact should be the arm64 DMG listed above.
+
+## Provider Console Arm64 Rebuild
+
+Preferred current artifact:
+
+`/Users/johnwick/Documents/codex/local-ai-orchestrator-chat-artifacts-20260612/generated-artifacts/Local-AI-Orchestrator-final-complete-arm64-provider-console-unsigned.dmg`
+
+- SHA-256: `a3da1f80e76d7efaf4e16d69b712529c77c2d56a96273cec7e3b9a80c4ad50a8`
+- Architecture audit: PASS, `0` x86_64-only
+- Provider Workspace Console: packaged and smoke-tested
+- ImportError runtime-entry verification: packaged and smoke-tested
+- Local task smoke: PASS
+- Sidecar cleanup: PASS
+
+This build supersedes the previous arm64 self-use DMG for local daily use.

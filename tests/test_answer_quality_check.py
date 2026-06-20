@@ -47,6 +47,12 @@ class AnswerQualityCheckTests(unittest.TestCase):
         )
         self.assertEqual(quality["quality"], "FAIL")
 
+    def test_short_reliable_minimal_answer_passes(self):
+        quality = AnswerQualityChecker().check("连接正常", reliable_answer=True)
+
+        self.assertEqual(quality["quality"], "PASS")
+        self.assertTrue(quality["reliable"])
+
     def test_partial_answer_with_blocking_error_is_partial(self):
         quality = AnswerQualityChecker().check(
             "A partial answer was generated, but something went wrong.",

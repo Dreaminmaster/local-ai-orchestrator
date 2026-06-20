@@ -149,6 +149,7 @@ class ExternalAIWorkspaceManager:
         self.open_request_ids: dict[str, str] = {}
         self.last_failure_codes: dict[str, str] = {}
         self.opening_providers: set[str] = set()
+        self.last_exchanges: dict[str, dict] = {}
 
     def configure_runtime_paths(self) -> Path:
         """Bind profile storage to the final backend runtime environment."""
@@ -354,6 +355,66 @@ class ExternalAIWorkspaceManager:
             self._release_owner(provider)
             self.active_request_ids.pop(provider, None)
         return await self.get_workspace_status(provider)
+
+    def record_exchange(
+        self,
+        provider: str,
+        *,
+        prompt: str,
+        answer: str,
+        quality: dict | None = None,
+        evidence_path: str = "",
+        selector: str = "",
+        warning_text: str = "",
+        warning_class: str = "",
+        task_id: str = "",
+        step_id: str = "",
+    ) -> None:
+        provider = normalize_provider(provider)
+        self.last_exchanges[provider] = {
+            "provider": provider,
+            "task_id": task_id,
+            "step_id": step_id,
+            "last_prompt": prompt,
+            "last_answer": answer,
+            "last_answer_preview": (answer or "")[:500],
+            "quality_result": quality or {},
+            "answer_selector": selector,
+            "warning_text": warning_text,
+            "warning_class": warning_class,
+            "evidence_path": evidence_path,
+            "updated_at": datetime.now().isoformat(),
+        }
+
+    async def workspace_console(self) -> dict:
+        providers = ["claude", "chatgpt", "gemini", "kimi", "doubao"]
+        statuses = {}
+        for provider in providers:
+            status = await self.get_workspace_status(provider)
+            statuses[provider] = {
+                **status.to_dict(),
+                "exchange": self.last_exchanges.get(provider, {}),
+            }
+        return {
+            "providers": statuses,
+            "enabled_count": len(providers),
+            "logged_in_count": sum(
+                1 for item in statuses.values()
+                if item.get("workspace_state") in {"READY", "PASS", "PARTIAL", "BUSY"}
+            ),
+            "route_ready_count": sum(
+                1 for item in statuses.values()
+                if (item.get("exchange", {}).get("quality_result") or {}).get("quality")
+                in {"PASS", "PASS_WITH_WARNING"}
+            ),
+            "active_provider": next(
+                (
+                    name for name, item in statuses.items()
+                    if item.get("active_request_id")
+                ),
+                "",
+            ),
+        }
 
     async def shutdown(self) -> None:
         providers = set(self.pages) | set(self.browser.contexts)

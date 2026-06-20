@@ -62,6 +62,41 @@ class RealProjectRunnerTests(unittest.TestCase):
             self.assertTrue(rollback["success"])
             self.assertTrue((root / "link.py").is_symlink())
 
+    def test_compileall_pass_but_runtime_importerror_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "project"
+            tasks = Path(tmp) / "tasks"
+            root.mkdir()
+            (root / "main.py").write_text(
+                "def run():\n    import nonexistent_module\n    print('ok')\n\nrun()\n",
+                encoding="utf-8",
+            )
+            runner = RealProjectRunner(tasks)
+
+            result = runner.run(root, "repair import error")
+
+            self.assertNotEqual(result["final_status"], "PASS")
+            state = runner.artifacts.read_json(result["task_id"], "task_state.json")
+            self.assertEqual(state["failure_reason"], "verification_failed")
+            report = Path(result["report_path"]).read_text(encoding="utf-8")
+            self.assertIn("最终状态：失败", report)
+            self.assertIn("python3 main.py", report)
+
+    def test_runtime_entry_pass_allows_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "project"
+            tasks = Path(tmp) / "tasks"
+            root.mkdir()
+            (root / "main.py").write_text("print('ok')\n", encoding="utf-8")
+            runner = RealProjectRunner(tasks)
+
+            result = runner.run(root, "verify healthy project")
+
+            self.assertEqual(result["final_status"], "PASS")
+            state = runner.artifacts.read_json(result["task_id"], "task_state.json")
+            commands = state["goal_contract"]["verification_commands"]
+            self.assertIn("python3 main.py", commands)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -62,6 +62,7 @@ LOW_QUALITY_PATTERNS = {
 
 class AnswerQualityChecker:
     LOW_MIN_CHARS = 20
+    SHORT_RELIABLE_MIN_CHARS = 4
 
     def check(
         self,
@@ -77,7 +78,19 @@ class AnswerQualityChecker:
             "issues": [],
             "reliable": True,
         }
-        if not answer or len(answer) < self.LOW_MIN_CHARS:
+        if not answer:
+            result["quality"] = "FAIL"
+            result["issues"].append("empty_or_short")
+            result["reliable"] = False
+            return result
+
+        if not reliable_answer:
+            result["quality"] = "FAIL"
+            result["issues"].append("unreliable_answer_source")
+            result["reliable"] = False
+            return result
+
+        if len(answer) < self.LOW_MIN_CHARS and len(answer) < self.SHORT_RELIABLE_MIN_CHARS:
             result["quality"] = "FAIL"
             result["issues"].append("empty_or_short")
             result["reliable"] = False
@@ -87,12 +100,6 @@ class AnswerQualityChecker:
         for category, patterns in LOW_QUALITY_PATTERNS.items():
             if any(p and p in lower for p in patterns):
                 result["issues"].append(category)
-
-        if not reliable_answer:
-            result["quality"] = "FAIL"
-            result["issues"].append("unreliable_answer_source")
-            result["reliable"] = False
-            return result
 
         warning_class = warning_class or (
             "non_blocking_warning" if warning_text else ""

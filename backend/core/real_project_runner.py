@@ -336,6 +336,13 @@ class RealProjectRunner:
             return ["python3 backend/test_contract.py", "node frontend/test.js"]
         if (root / "tests").is_dir():
             return ["python3 -m unittest discover -s tests -v"]
+        if project_type == "python":
+            commands = ["python3 -m compileall -q ."]
+            for candidate in ["main.py", "app.py", "cli.py"]:
+                if (root / candidate).is_file():
+                    commands.append(f"python3 {candidate}")
+                    break
+            return commands
         source = "app" if (root / "app").is_dir() else "."
         return [f"python3 -m compileall -q {source}"]
 
@@ -615,6 +622,15 @@ class RealProjectRunner:
         final: list[dict],
         verified: bool,
     ) -> str:
+        command_lines = []
+        for item in final:
+            status = "通过" if item["exit_code"] == 0 else "失败"
+            stderr = (item.get("stderr") or "").strip().splitlines()
+            detail = f" stderr: {stderr[-1]}" if stderr else ""
+            command_lines.append(
+                f"- `{item['command']}`：{status}（exit {item['exit_code']}）{detail}"
+            )
+        command_block = "\n".join(command_lines) if command_lines else "- 无"
         return (
             "# 真实项目完成报告\n\n"
             f"- 用户目标：{goal}\n"
@@ -623,6 +639,9 @@ class RealProjectRunner:
             f"- 修改文件：{', '.join(changed) if changed else '无'}\n"
             f"- 初始验证失败数：{sum(item['exit_code'] != 0 for item in initial)}\n"
             f"- 最终验证通过数：{sum(item['exit_code'] == 0 for item in final)}/{len(final)}\n"
+            "\n## 最终验证命令\n\n"
+            f"{command_block}\n\n"
+            f"{'验证命令全部通过。' if verified else '编译或局部检查不足以判定成功，至少一个真实入口/测试命令仍失败。'}\n\n"
             "- Claude 是否参与：否\n"
             "- 风险与限制：仅修改隔离测试副本；未安装依赖；未调用其他 provider。\n"
         )

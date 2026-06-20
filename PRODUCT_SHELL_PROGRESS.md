@@ -219,6 +219,33 @@ What succeeded:
 
 What is blocked:
 
+## Final Provider Console Arm64 DMG Rebuild - 2026-06-20
+
+Status: PASS
+
+New preferred self-use DMG:
+
+`/Users/johnwick/Documents/codex/local-ai-orchestrator-chat-artifacts-20260612/generated-artifacts/Local-AI-Orchestrator-final-complete-arm64-provider-console-unsigned.dmg`
+
+Included packaged fixes:
+
+- AI 工作区控制台
+- Provider prompt / answer / warning / evidence summaries
+- Claude / Kimi short-answer extraction and quality handling
+- Body/sidebar fallback remains blocked from PASS
+- Python `main.py` runtime-entry verification after `compileall`
+
+Install smoke:
+
+- DMG mount and isolated App copy: PASS
+- `/api/health`: PASS
+- `/api/ui-ready`: PASS
+- Provider console API: PASS
+- Local task: PASS
+- ImportError runtime-entry regression: PASS
+- Sidecar shutdown: PASS
+- 8422 / 8423 residue: none
+
 - `rustc --version`: command not found in current shell.
 - `cargo --version`: command not found in current shell.
 - `npm run dev`: blocked because Tauri could not run `cargo metadata`.
@@ -703,3 +730,18 @@ Current status:
 - Final unsigned DMG generated in the existing archive root.
 - Isolated install smoke, UI readiness, local task, routing safety, settings
   persistence, sidecar shutdown, and 8422/8423 cleanup: PASS.
+
+## Provider Workspace Console + Real Repair Verification Sprint - 2026-06-20
+
+- Provider short-answer extraction fixed for reliable assistant selectors.
+- Claude live minimal: PASS_WITH_WARNING, `连接正常`, selector `[class*='font-claude']`.
+- Kimi live minimal: PASS, `连接正常`, selector `.markdown`.
+- Provider Workspace Console added to the AI 服务 page.
+- Console shows provider status, current URL, latest prompt, latest answer,
+  quality result, warning class, and evidence path.
+- Current implementation uses App-managed Chromium windows plus an in-App
+  console, not true embedded provider webpages.
+- RealProjectRunner verification strengthened: Python projects with `main.py`
+  now run `python3 main.py`.
+- `compileall` PASS but runtime FAIL is no longer marked success.
+- DMG has not been rebuilt in this sprint.

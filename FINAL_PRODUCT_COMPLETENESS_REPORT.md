@@ -53,3 +53,20 @@ Mach-O files.
 - Provider routing safety: PASS
 - Third-party account live verification: PARTIAL / USER_PENDING
 - Final delivery: PASS_WITH_USER_PENDING_PROVIDER_LOGINS
+
+## Provider Console Arm64 Rebuild Acceptance
+
+Current recommended DMG:
+
+`/Users/johnwick/Documents/codex/local-ai-orchestrator-chat-artifacts-20260612/generated-artifacts/Local-AI-Orchestrator-final-complete-arm64-provider-console-unsigned.dmg`
+
+- SHA-256: `a3da1f80e76d7efaf4e16d69b712529c77c2d56a96273cec7e3b9a80c4ad50a8`
+- Provider console packaged: PASS
+- Short-answer quality fixes packaged: PASS
+- Body/sidebar fallback still cannot pass: PASS
+- ImportError runtime-entry verification packaged: PASS
+- Local task smoke: PASS
+- Sidecar shutdown and port cleanup: PASS
+
+The product remains complete for local self-use with optional post-install web
+Provider onboarding.

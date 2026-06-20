@@ -428,7 +428,7 @@ async def live_minimal_workspace(provider: str, payload: dict = Body(default_fac
             "failure_reason": "user_confirmation_required",
         }
     existing = _load_report(provider)
-    if existing.get("onboarding_live_minimal"):
+    if existing.get("onboarding_live_minimal") and existing.get("success"):
         return {
             **existing,
             "reused_previous_result": True,
@@ -512,3 +512,8 @@ async def workspace_evidence(provider: str):
             for path in items
         ],
     }
+
+
+@router.get("/web-ai/workspaces/console")
+async def workspace_console():
+    return await workspace_manager.workspace_console()

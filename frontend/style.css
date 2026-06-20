@@ -581,6 +581,77 @@ body {
     font-size: 12px;
 }
 
+.provider-console {
+    margin-top: 18px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    background: var(--bg-secondary);
+}
+
+.provider-console-header,
+.provider-console-card header,
+.provider-console-summary {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+
+.provider-console-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.provider-console-summary {
+    grid-column: 1 / -1;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    flex-wrap: wrap;
+}
+
+.provider-console-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    background: var(--bg-primary);
+    min-width: 0;
+}
+
+.provider-console-card small,
+.provider-console-card dd,
+.provider-console-card dt {
+    overflow-wrap: anywhere;
+}
+
+.provider-console-card dl {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 6px 10px;
+    margin: 10px 0 0;
+}
+
+.provider-console-card dt {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.provider-console-card dd {
+    margin: 0;
+    font-size: 12px;
+}
+
+.provider-console-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
 .realtime-task-summary span {
     margin-top: 3px;
     color: var(--text-secondary);

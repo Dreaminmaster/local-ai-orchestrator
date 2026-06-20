@@ -79,6 +79,8 @@ class BaseWebAIAdapter(ABC):
             "answer_timestamp": getattr(
                 getattr(self, "extractor", None), "answer_timestamp", ""
             ),
+            "message_index": getattr(getattr(self, "extractor", None), "message_index", -1),
+            "fallback_used": getattr(getattr(self, "extractor", None), "used_body_fallback", False),
         }
         return WebAIResponse(
             provider=self.provider_name,

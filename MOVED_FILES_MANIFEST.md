@@ -18,6 +18,25 @@ Date: 2026-06-20
 
 `generated-artifacts/Local-AI-Orchestrator-final-complete-arm64-unsigned.dmg`
 
+## Provider Console Arm64 Rebuild Artifact
+
+`generated-artifacts/Local-AI-Orchestrator-final-complete-arm64-provider-console-unsigned.dmg`
+
+- Size: `176017936` bytes
+- SHA-256: `a3da1f80e76d7efaf4e16d69b712529c77c2d56a96273cec7e3b9a80c4ad50a8`
+- Purpose: arm64 unsigned self-use DMG containing Provider Workspace Console, short-answer extraction fixes, and ImportError runtime-entry verification fixes.
+
+Supporting files:
+
+- `patches/provider_workspace_console_arm64_rebuild.patch`
+- `backups/provider_workspace_console_arm64_rebuild_local_backup.zip`
+- `staging/provider-console-arm64-build/`
+- `test-workspaces/provider-console-arm64-install-smoke/`
+
+Old main artifact moved, not deleted:
+
+- `generated-artifacts/old/Local-AI-Orchestrator-final-complete-arm64-unsigned.dmg`
+
 ## New Apple Silicon Staging Artifacts
 
 `staging/apple-silicon-rebuild/`
