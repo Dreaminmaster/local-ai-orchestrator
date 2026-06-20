@@ -18,6 +18,8 @@ venv/
 
 # Storage
 storage/*.db
+backend/storage/*.db
+settings.json
 evidence/
 runtime/
 .orchestrator_snapshots/

@@ -40,3 +40,14 @@ Contains architecture audit JSON/Markdown, smoke payload summaries, rollback res
 ## Codex Root Hygiene
 
 This sprint used the existing archive root and did not intentionally create new deliverables directly under `/Users/johnwick/Documents/codex`.
+
+## Final Cleanup 2026-06-20
+
+- Cleanup plan: CLEANUP_PLAN_FINAL.md
+- Cleanup report: FINAL_CLEANUP_REPORT.md
+- Move log: /Users/johnwick/Documents/codex/local-ai-orchestrator-chat-artifacts-20260612/staging/apple-silicon-rebuild/final-cleanup-move-log-20260620_214953.tsv
+- Moved to old/: 63 items
+- Permanently deleted: 0 items
+- Final arm64 DMG preserved: yes
+- Final patch preserved: yes
+- Final backup preserved: yes
