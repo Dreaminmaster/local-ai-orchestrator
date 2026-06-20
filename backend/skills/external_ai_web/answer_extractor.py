@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime
 from .selectors import SELECTORS
 
 
@@ -44,6 +45,23 @@ class AnswerExtractor:
         "停止回答",
         "typing",
     ]
+    PAGE_ERROR_HINTS = [
+        "network error",
+        "connection lost",
+        "connection failed",
+        "unable to connect",
+        "request timed out",
+        "reconnecting",
+        "网络错误",
+        "无法连接",
+        "连接失败",
+        "请求超时",
+    ]
+    NON_BLOCKING_WARNING_HINTS = [
+        "is currently unavailable",
+        "model is currently unavailable",
+        "learn more",
+    ]
 
     def __init__(self):
         self.used_selector = ""
@@ -51,6 +69,9 @@ class AnswerExtractor:
         self.candidate_selectors: list[dict] = []
         self.raw_body_fallback = ""
         self.error_reason = ""
+        self.warning_text = ""
+        self.warning_class = ""
+        self.answer_timestamp = ""
 
     async def wait_complete(self, page, timeout: int = 180) -> bool:
         last = ""
@@ -78,6 +99,9 @@ class AnswerExtractor:
         self.candidate_selectors = []
         self.raw_body_fallback = ""
         self.error_reason = ""
+        self.warning_text = ""
+        self.warning_class = ""
+        self.answer_timestamp = ""
         if provider == "claude":
             return await self._latest_claude(page, exclude_text)
         selectors = self._selectors(provider)
@@ -121,6 +145,8 @@ class AnswerExtractor:
                 break
         if best_text:
             self.used_selector = best_selector
+            self.answer_timestamp = datetime.now().isoformat()
+            await self._capture_page_warning(page, reliable_answer=True)
             return best_text
 
         body = (await page.locator("body").inner_text(timeout=10000))[-4000:]
@@ -128,10 +154,13 @@ class AnswerExtractor:
         if parsed:
             self.used_body_fallback = False
             self.used_selector = f"body_marker:{provider}"
+            self.answer_timestamp = datetime.now().isoformat()
+            await self._capture_page_warning(page, reliable_answer=False)
             return parsed
         self.used_body_fallback = True
         self.used_selector = "body_fallback"
         self.raw_body_fallback = body
+        await self._capture_page_warning(page, reliable_answer=False)
         return self._clean(body)
 
     async def _latest_claude(self, page, exclude_text: str = "") -> str:
@@ -193,6 +222,8 @@ class AnswerExtractor:
         if best:
             best["record"]["chosen"] = True
             self.used_selector = best["selector"]
+            self.answer_timestamp = datetime.now().isoformat()
+            await self._capture_page_warning(page, reliable_answer=True)
             return best["text"]
 
         body = (await page.locator("body").inner_text(timeout=10000))[-6000:]
@@ -200,6 +231,7 @@ class AnswerExtractor:
         if parsed:
             self.used_body_fallback = False
             self.used_selector = "body_marker:claude"
+            self.answer_timestamp = datetime.now().isoformat()
             self.candidate_selectors.append(
                 {
                     "selector": "body_marker:claude",
@@ -210,12 +242,14 @@ class AnswerExtractor:
                     "chosen": True,
                 }
             )
+            await self._capture_page_warning(page, reliable_answer=False)
             return parsed
 
         self.used_body_fallback = True
         self.used_selector = "body_fallback"
         self.raw_body_fallback = body
         self.error_reason = "claude_reliable_answer_not_found"
+        await self._capture_page_warning(page, reliable_answer=False)
         self.candidate_selectors.append(
             {
                 "selector": "body_fallback",
@@ -311,6 +345,8 @@ class AnswerExtractor:
                 return 0, "contains_user_prompt"
         if any(hint in lower for hint in self.GENERATION_HINTS):
             return 0, "generation_in_progress"
+        if any(hint in lower for hint in self.PAGE_ERROR_HINTS):
+            return 0, "page_error_banner"
         sidebar_hits = sum(1 for hint in self.NAV_HINTS if hint in lower)
         if sidebar_hits >= 3:
             return 0, "sidebar_or_landing_markers"
@@ -332,9 +368,27 @@ class AnswerExtractor:
             score -= sidebar_hits * 8
         if len(text) > 3500:
             score -= 25
-        if score < 35:
+        minimum_score = 25 if provider == "claude" and "font-claude" in selector else 35
+        if score < minimum_score:
             return score, "low_score"
         return score, ""
+
+    async def _capture_page_warning(self, page, *, reliable_answer: bool) -> None:
+        try:
+            body = await page.locator("body").inner_text(timeout=3000)
+        except Exception:
+            return
+        lines = []
+        for line in body.splitlines():
+            stripped = line.strip()
+            lower = stripped.lower()
+            if stripped and any(hint in lower for hint in self.NON_BLOCKING_WARNING_HINTS):
+                lines.append(stripped)
+        self.warning_text = "\n".join(dict.fromkeys(lines))
+        if self.warning_text:
+            self.warning_class = (
+                "non_blocking_warning" if reliable_answer else "blocking_error"
+            )
 
     def _parse_provider_body(self, provider: str, text: str) -> str:
         cleaned = self._clean(text)

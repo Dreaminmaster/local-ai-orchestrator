@@ -1,11 +1,12 @@
 from pathlib import Path
 import json
 from backend.local_model.step_state import StepState
+from backend.runtime_paths import resolve_runtime_paths
 
 
 class StepStateStore:
-    def __init__(self, root: str = "runtime/tasks"):
-        self.root = Path(root)
+    def __init__(self, root: str | Path | None = None):
+        self.root = Path(root) if root else resolve_runtime_paths().ensure().tasks_dir
         self.root.mkdir(parents=True, exist_ok=True)
 
     def _path(self, task_id: str) -> Path:

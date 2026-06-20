@@ -1,6 +1,7 @@
 """Reporter — Generate final task reports."""
 
 from __future__ import annotations
+import asyncio
 import json
 from backend.llm.base import LLMProvider, LLMMessage
 
@@ -44,7 +45,9 @@ class Reporter:
         ]
 
         try:
-            resp = await self.llm.chat(messages, temperature=0.3)
+            resp = await asyncio.wait_for(
+                self.llm.chat(messages, temperature=0.3), timeout=5
+            )
             return resp.content
         except Exception:
             # Fallback: simple report
@@ -82,12 +85,15 @@ class Reporter:
 7. 证据：哪些证据证明完成。
 8. 未完成项：仍不确定或待人工处理的部分。"""
         try:
-            resp = await self.llm.chat(
-                [
-                    LLMMessage(role="system", content=SYSTEM_PROMPT),
-                    LLMMessage(role="user", content=prompt + "\n\n" + context),
-                ],
-                temperature=0.3,
+            resp = await asyncio.wait_for(
+                self.llm.chat(
+                    [
+                        LLMMessage(role="system", content=SYSTEM_PROMPT),
+                        LLMMessage(role="user", content=prompt + "\n\n" + context),
+                    ],
+                    temperature=0.3,
+                ),
+                timeout=5,
             )
             return resp.content
         except Exception:

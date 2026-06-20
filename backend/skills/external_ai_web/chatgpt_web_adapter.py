@@ -1,4 +1,3 @@
-from backend.browser.profile_manager import BrowserProfileManager
 from .base_web_ai_adapter import BaseWebAIAdapter
 from .login_detector import LoginDetector
 from .prompt_sender import PromptSender
@@ -17,14 +16,13 @@ class ChatGPTWebAdapter(BaseWebAIAdapter):
         self.profile_name = profile_name
         self.headless = headless
         self.debug = debug
-        self.manager = BrowserProfileManager()
         self.login_detector = LoginDetector()
         self.sender = PromptSender()
         self.extractor = AnswerExtractor()
 
     async def open(self) -> None:
         if self.page is None:
-            self.page = await self.manager.new_page(self.profile_name, self.headless)
+            raise RuntimeError("WORKSPACE_REQUIRED_BACKEND_SINGLE_OWNER")
         await self.page.goto(self.url, wait_until="domcontentloaded", timeout=60000)
 
     async def is_logged_in(self) -> bool:

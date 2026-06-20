@@ -7,6 +7,8 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+os.environ.setdefault("LOCAL_AI_WORKSPACE_OWNER_TYPE", "backend")
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +23,11 @@ from backend.api.websocket import router as ws_router
 from backend.api.confirmations import router as confirmations_router
 from backend.api.contracts import router as contracts_router
 from backend.api.web_ai_profiles import router as web_ai_router
+from backend.api.external_ai_actions import router as external_ai_actions_router
+from backend.api.health import router as health_router
+from backend.api.playwright_status import router as playwright_status_router
+from backend.api.app_data import router as app_data_router
+from backend.api.providers import router as providers_router
 
 # ---------------------------------------------------------------------------
 # Lifespan
@@ -32,9 +39,13 @@ db = Database()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup / shutdown."""
+    from backend.skills.external_ai_web.workspace_manager import workspace_manager
+
+    workspace_manager.configure_runtime_paths()
     await db.initialize()
     app.state.db = db
     yield
+    await workspace_manager.shutdown()
     await db.close()
 
 
@@ -63,6 +74,11 @@ app.include_router(skills_router, prefix="/api")
 app.include_router(confirmations_router, prefix="/api")
 app.include_router(contracts_router, prefix="/api")
 app.include_router(web_ai_router, prefix="/api")
+app.include_router(external_ai_actions_router, prefix="/api")
+app.include_router(health_router, prefix="/api")
+app.include_router(playwright_status_router, prefix="/api")
+app.include_router(app_data_router, prefix="/api")
+app.include_router(providers_router, prefix="/api")
 app.include_router(ws_router, prefix="/ws")
 
 # Serve frontend

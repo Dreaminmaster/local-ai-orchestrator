@@ -45,7 +45,11 @@ class WebAIEvidenceWriter:
         path.mkdir(parents=True, exist_ok=True)
         (path / "prompt.redacted.txt").write_text(prompt or "", encoding="utf-8")
         (path / "answer.txt").write_text(answer or "", encoding="utf-8")
+        (path / "extracted_answer.txt").write_text(answer or "", encoding="utf-8")
         extract = (metadata or {}).get("extract", {}) if metadata else {}
+        warning_text = (metadata or {}).get("warning_text", "") if metadata else ""
+        if warning_text:
+            (path / "warning.txt").write_text(warning_text, encoding="utf-8")
         if extract.get("raw_body_fallback"):
             (path / "answer_raw_body_fallback.txt").write_text(
                 extract.get("raw_body_fallback") or "",

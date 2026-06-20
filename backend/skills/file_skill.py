@@ -97,6 +97,7 @@ class FileSkill(Skill):
             skill=self.name,
             success=True,
             result=content[:10000],
+            evidence=[path],
             metadata={
                 "path": path,
                 "size": p.stat().st_size,

@@ -19,11 +19,25 @@
                 <span class="status-text" id="llmStatusText">未连接</span>
             </div>
         </header>
+        <section class="system-status-bar">
+            <div><strong>Backend</strong><span id="backendStatus">checking...</span></div>
+            <div><strong>Portable mode</strong><span id="portableStatus">checking...</span></div>
+            <div><strong>LM Studio</strong><span id="lmStudioStatus">checking...</span></div>
+            <div><strong>External AI</strong><span id="externalAiStatus">checking...</span></div>
+            <div><strong>Desktop Shell</strong><span id="desktopShellStatus">checking...</span></div>
+            <div><strong>Current task</strong><span id="currentTaskStatus">—</span></div>
+        </section>
+        <nav class="product-nav" aria-label="产品导航">
+            <button class="product-nav-button active" onclick="showProductSection('task', this)">任务</button>
+            <button class="product-nav-button" onclick="showProductSection('history', this)">历史</button>
+            <button class="product-nav-button" onclick="showProductSection('ai-services', this)">AI 服务</button>
+            <button class="product-nav-button" onclick="showProductSection('settings', this)">设置与诊断</button>
+        </nav>
 
         <!-- Main Layout -->
         <div class="main-layout">
             <!-- Left Panel: Goal & Criteria -->
-            <aside class="panel panel-left">
+            <aside class="panel panel-left" id="external-ai-section">
                 <div class="panel-section">
                     <h3>🎯 任务目标</h3>
                     <div id="goalDisplay" class="goal-content">
@@ -37,8 +51,9 @@
                     </ul>
                 </div>
                 <div class="panel-section">
-                    <h3>🤖 外部 AI 状态</h3>
-                    <div id="aiProfiles" class="ai-profiles"></div>
+                    <h3>当前 AI 路由</h3>
+                    <div id="taskProviderSummary" class="memory-list"><p class="placeholder">正在读取...</p></div>
+                    <button class="btn-secondary" onclick="showProductSection('ai-services', document.querySelectorAll('.product-nav-button')[2])">配置 AI 服务</button>
                 </div>
                 <div class="panel-section">
                     <h3>🔧 可用技能</h3>
@@ -47,28 +62,38 @@
             </aside>
 
             <!-- Center: Execution Area -->
-            <main class="panel panel-center">
+            <main class="panel panel-center" id="task-section">
                 <!-- Task Input -->
                 <div class="task-input-area two-dimensional-entry">
+                    <label class="project-path-label">测试项目副本
+                        <input id="projectPath" placeholder="请选择或填写项目副本路径，不会修改原项目">
+                    </label>
                     <textarea id="taskInput" placeholder="输入你的任务，例如：帮我把这个仓库做成最终产品效果。" rows="2"></textarea>
                     <div class="strategy-selectors">
                         <label>目标理解策略
                             <select id="goalMode">
-                                <option value="clarify_first">目标确认模式：先问清楚再确立目标</option>
-                                <option value="autonomous" selected>自主创意模式：AI 自己理解并发挥</option>
+                                <option value="clarify_first" selected>目标确认模式：先问清楚再确立目标</option>
+                                <option value="autonomous">自主创意模式：AI 自己理解并发挥</option>
                             </select>
                         </label>
                         <label>执行授权策略
                             <select id="authorizationMode" onchange="togglePreflight()">
-                                <option value="standard">标准授权：关键动作前确认</option>
-                                <option value="full_autonomy" selected>全自主授权：开始前一次性索权，之后全自主执行</option>
+                                <option value="standard" selected>标准授权：关键动作前确认</option>
+                                <option value="full_autonomy">全自主授权：开始前一次性索权，之后全自主执行</option>
                             </select>
                         </label>
                     </div>
                     <button id="executeBtn" class="btn-execute" onclick="executeTask()">
-                        <span class="btn-icon">▶</span> 生成 Contract 并执行
+                        <span class="btn-icon">▶</span> 生成 Goal Contract
                     </button>
                 </div>
+                <section class="realtime-task-summary" aria-label="实时任务状态">
+                    <div><strong>当前阶段</strong><span id="realtimeStage">等待任务</span></div>
+                    <div><strong>状态</strong><span id="realtimeStatus">就绪</span></div>
+                    <div><strong>进度</strong><span id="realtimeProgress">0%</span></div>
+                    <div><strong>运行时间</strong><span id="realtimeElapsed">0 秒</span></div>
+                    <div><strong>Claude 调用</strong><span id="realtimeClaudeCalls">0</span></div>
+                </section>
                 <section id="clarificationPanel" class="preflight-panel hidden">
                     <h3>🎯 目标确认</h3>
                     <p id="clarificationSummary" class="placeholder"></p>
@@ -78,17 +103,26 @@
                 </section>
 
                 <div id="preflightPanel" class="preflight-panel">
-                    <h3>🛫 全自主授权 Preflight</h3>
+                    <h3>全自主授权范围</h3>
                     <div class="preflight-grid">
-                        <input id="projectPath" placeholder="项目路径，例如 /path/to/project">
                         <input id="externalAi" placeholder="已登录外部 AI，例如 ChatGPT, Claude, Gemini, Kimi">
                         <input id="userPreferences" placeholder="用户偏好和目标重点，例如 高级、真实、不要低端模板感">
                         <input id="protectedPaths" placeholder="不能动的文件/目录，用逗号分隔">
                     </div>
-                    <div class="capability-grid" id="capabilityGrid"></div>
+                    <details>
+                        <summary>高级权限信息</summary>
+                        <div class="capability-grid" id="capabilityGrid"></div>
+                    </details>
                 </div>
 
                 <!-- Execution Plan -->
+                <section id="externalAiPausePanel" class="preflight-panel hidden">
+                    <h3>🧩 外部 AI 等待处理</h3>
+                    <p id="externalAiPauseReason" class="placeholder">—</p>
+                    <button class="btn-execute" onclick="resumePendingExternalAi()">我已处理，继续</button>
+                    <button class="btn-secondary" onclick="loadPendingExternalAi()">查看待处理外部 AI 动作</button>
+                    <button class="btn-secondary" onclick="refreshWorkspaceStatus('claude')">重新检测</button>
+                </section>
                 <div class="execution-plan" id="executionPlan">
                     <h3>📋 执行计划</h3>
                     <div id="planSteps" class="plan-steps">
@@ -111,11 +145,33 @@
 
             <!-- Right Panel: Evidence Board -->
             <aside class="panel panel-right">
+                <div class="panel-section first-run-section" id="settings-section">
+                    <h3>首次启动与本地数据</h3>
+                    <div id="firstRunStatus" class="setup-status-grid"><p class="placeholder">正在检查...</p></div>
+                    <div class="workspace-actions">
+                        <button class="btn-secondary" onclick="openAppData()">打开本地数据目录</button>
+                        <button class="btn-secondary" onclick="exportDiagnostics()">导出诊断包</button>
+                        <button class="btn-secondary" onclick="clearAppCache()">清理缓存</button>
+                        <button class="btn-secondary" onclick="openAppData()">查看日志</button>
+                    </div>
+                    <div id="appDataActionResult" class="memory-list"><p class="placeholder">—</p></div>
+                </div>
                 <div class="panel-section">
-                    <h3>📊 证据板</h3>
+                    <h3>执行证据</h3>
                     <div id="evidenceBoard" class="evidence-list">
                         <p class="placeholder">执行过程中将自动收集证据</p>
                     </div>
+                </div>
+                <div class="panel-section">
+                    <h3>外部 AI 测试状态</h3>
+                    <button class="btn-secondary" onclick="loadWebAiMatrix()">刷新矩阵</button>
+                    <div id="webAiMatrix" class="web-ai-matrix"><p class="placeholder">—</p></div>
+                    <div id="webAiMatrixDetail" class="matrix-detail hidden"></div>
+                </div>
+                <div class="panel-section">
+                    <h3>🌐 项目专用浏览器</h3>
+                    <button class="btn-secondary" onclick="loadPlaywrightStatus()">重新检测</button>
+                    <div id="playwrightStatus" class="memory-list"><p class="placeholder">—</p></div>
                 </div>
                 <div class="panel-section">
                     <h3>📈 执行统计</h3>
@@ -144,6 +200,11 @@
                     <div id="pendingActionsList" class="memory-list"><p class="placeholder">—</p></div>
                 </div>
                 <div class="panel-section">
+                    <h3 id="history-section">最近任务</h3>
+                    <button class="btn-secondary" onclick="loadRecentTasks()">刷新任务</button>
+                    <div id="recentTasksList" class="memory-list"><p class="placeholder">—</p></div>
+                </div>
+                <div class="panel-section">
                     <h3>🔁 可恢复任务</h3>
                     <button class="btn-secondary" onclick="loadResumableTasks()">刷新恢复列表</button>
                     <div id="resumableTasksList" class="memory-list"><p class="placeholder">—</p></div>
@@ -156,6 +217,68 @@
                 </div>
             </aside>
         </div>
+        <section id="ai-services-section" class="ai-services-page">
+            <header class="section-header">
+                <h2>AI 服务</h2>
+                <p>一次选择、配置和验证本地模型与项目专用网页 AI。未验证服务不会参与自动路由。</p>
+            </header>
+            <section class="provider-onboarding-summary">
+                <div><strong id="providerEnabledCount">0</strong><span>已启用服务</span></div>
+                <div><strong id="providerVerifiedCount">0</strong><span>已验证服务</span></div>
+                <div><strong id="providerDefaultLocal">—</strong><span>默认本地模型</span></div>
+                <div><strong id="providerDefaultExternal">—</strong><span>默认外部 AI</span></div>
+                <button class="btn-execute" onclick="startProviderOnboarding()">开始配置向导</button>
+            </section>
+            <section id="providerOnboardingWizard" class="provider-wizard hidden" aria-live="polite">
+                <header>
+                    <div>
+                        <h3>选择要使用的 AI 服务</h3>
+                        <p id="providerWizardProgress">一次完成选择、登录、检测与测试。</p>
+                    </div>
+                    <button class="btn-secondary" onclick="stopProviderOnboarding()">停止向导</button>
+                </header>
+                <div id="providerChoiceGrid" class="provider-choice-grid"></div>
+                <div id="providerWizardStep" class="provider-wizard-step"></div>
+                <div class="provider-card-actions">
+                    <button class="btn-secondary" onclick="saveProviderChoices()">保存选择</button>
+                    <button class="btn-secondary" onclick="providerWizardNext()">跳过当前项</button>
+                </div>
+            </section>
+            <div class="provider-routing-panel">
+                <label>路由策略
+                    <select id="providerRoutingPolicy">
+                        <option value="local_first">本地优先</option>
+                        <option value="best_capability">最佳能力</option>
+                        <option value="fully_local">完全本地</option>
+                        <option value="manual_confirmation">手动确认</option>
+                    </select>
+                </label>
+                <label><input id="providerAllowAutomatic" type="checkbox"> 允许自动调用网页 AI</label>
+                <label><input id="providerRequireConfirmation" type="checkbox" checked> 调用网页 AI 前确认</label>
+                <label>每任务最多调用 <input id="providerMaxCalls" type="number" min="0" max="5" value="1"></label>
+                <div><strong>网页 AI 优先顺序</strong><div id="providerPriorityList" class="provider-priority-list"></div></div>
+                <input id="providerPriority" type="hidden" value="claude, chatgpt, gemini, kimi, doubao">
+                <button class="btn-secondary" onclick="saveProviderRouting()">保存路由设置</button>
+            </div>
+            <details class="provider-routing-panel">
+                <summary>本地模型角色设置</summary>
+                <label><input id="localModelSimpleMode" type="checkbox" checked> 简单模式：所有角色使用默认本地模型</label>
+                <div id="localModelRoleSettings" class="provider-card-grid"></div>
+                <button class="btn-secondary" onclick="saveLocalModelRouting()">保存角色设置</button>
+            </details>
+            <h3>已启用</h3>
+            <div id="localProviderCards" class="provider-card-grid"><p class="placeholder">正在检测...</p></div>
+            <div id="webProviderCards" class="provider-card-grid"><p class="placeholder">正在检测...</p></div>
+            <section class="inactive-providers">
+                <h3>未启用</h3>
+                <div id="disabledWebProviderCards" class="provider-card-grid"><p class="placeholder">正在加载...</p></div>
+            </section>
+            <details>
+                <summary>高级信息：Provider 能力矩阵</summary>
+                <div id="productProviderMatrix" class="web-ai-matrix"><p class="placeholder">正在加载...</p></div>
+            </details>
+            <div id="webAiWorkspaceStatus" class="memory-list"><p class="placeholder">—</p></div>
+        </section>
     </div>
 
     <script src="app.js"></script>

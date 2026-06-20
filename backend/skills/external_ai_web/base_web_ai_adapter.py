@@ -74,6 +74,11 @@ class BaseWebAIAdapter(ABC):
             "candidate_selectors": getattr(
                 getattr(self, "extractor", None), "candidate_selectors", []
             ),
+            "warning_text": getattr(getattr(self, "extractor", None), "warning_text", ""),
+            "warning_class": getattr(getattr(self, "extractor", None), "warning_class", ""),
+            "answer_timestamp": getattr(
+                getattr(self, "extractor", None), "answer_timestamp", ""
+            ),
         }
         return WebAIResponse(
             provider=self.provider_name,

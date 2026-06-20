@@ -196,6 +196,158 @@ body {
     font-size: 10px;
 }
 
+.workspace-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.first-run-section {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 16px;
+}
+
+.setup-status-grid {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.setup-status-item {
+    display: grid;
+    grid-template-columns: minmax(90px, 0.8fr) minmax(0, 1.6fr);
+    gap: 8px;
+    padding: 6px 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+}
+
+.setup-status-item strong {
+    color: var(--text-secondary);
+}
+
+.setup-status-item span {
+    overflow-wrap: anywhere;
+}
+
+.system-status-bar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+    font-size: 12px;
+}
+
+.system-status-bar div {
+    min-width: 0;
+}
+
+.system-status-bar strong {
+    display: block;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.system-status-bar span {
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.product-nav {
+    display: flex;
+    gap: 4px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+
+.product-nav-button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.product-nav-button:hover,
+.product-nav-button.active {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border-color: var(--border);
+}
+
+.project-path-label {
+    display: grid;
+    gap: 5px;
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.project-path-label input {
+    width: 100%;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 9px 10px;
+}
+
+#externalAiPausePanel {
+    border-color: var(--warning);
+    background: color-mix(in srgb, var(--warning) 8%, var(--bg-secondary));
+}
+
+.web-ai-matrix {
+    overflow-x: auto;
+}
+
+.matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+.matrix-table th,
+.matrix-table td {
+    padding: 5px 6px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.matrix-table tr {
+    cursor: pointer;
+}
+
+.matrix-table tr:hover {
+    background: var(--bg-hover);
+}
+
+.matrix-detail {
+    margin-top: 8px;
+    padding: 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.hidden {
+    display: none;
+}
+
+.warning-text {
+    color: var(--warning);
+}
+
 /* Skills Grid */
 .skills-grid {
     display: flex;
@@ -269,6 +421,176 @@ body {
 /* Execution Plan */
 .execution-plan {
     margin-bottom: 16px;
+}
+
+.realtime-task-summary {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-secondary);
+}
+
+.realtime-task-summary div {
+    min-width: 0;
+}
+
+.realtime-task-summary strong,
+.realtime-task-summary span {
+    display: block;
+    font-size: 12px;
+}
+
+.ai-services-page {
+    max-width: 1440px;
+    margin: 16px auto;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.section-header p {
+    color: var(--text-secondary);
+}
+
+.provider-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 10px;
+}
+
+.provider-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    background: var(--bg-secondary);
+}
+
+.provider-card h4 {
+    margin: 0 0 8px;
+}
+
+.provider-card-header,
+.provider-onboarding-summary,
+.provider-wizard header,
+.provider-priority-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.provider-card-header h4 {
+    margin-bottom: 2px;
+}
+
+.provider-state {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.provider-onboarding-summary {
+    flex-wrap: wrap;
+    padding: 12px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+}
+
+.provider-onboarding-summary div {
+    display: grid;
+    gap: 2px;
+    min-width: 120px;
+}
+
+.provider-onboarding-summary span,
+.provider-choice small {
+    color: var(--text-secondary);
+    font-size: 11px;
+}
+
+.provider-wizard {
+    padding: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    margin-bottom: 14px;
+}
+
+.provider-choice-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 8px;
+    margin: 10px 0;
+}
+
+.provider-choice {
+    display: grid;
+    gap: 4px;
+    padding: 8px;
+    border: 1px solid var(--border);
+}
+
+.provider-wizard-step {
+    min-height: 90px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+}
+
+.provider-priority-list {
+    display: grid;
+    gap: 4px;
+    min-width: 230px;
+}
+
+.provider-priority-item {
+    padding: 4px 0;
+}
+
+.provider-priority-item button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+}
+
+.provider-card label {
+    display: block;
+    margin: 6px 0;
+    font-size: 12px;
+}
+
+.provider-card input,
+.provider-card select {
+    width: 100%;
+    margin-top: 3px;
+}
+
+.provider-card-actions,
+.provider-routing-panel {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: end;
+}
+
+.provider-routing-panel {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 14px;
+}
+
+.provider-routing-panel label {
+    font-size: 12px;
+}
+
+.realtime-task-summary span {
+    margin-top: 3px;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+    .realtime-task-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }
 
 .plan-steps {

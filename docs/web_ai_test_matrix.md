@@ -22,6 +22,7 @@ Last generated: 2026-06-02T02:52:37.546845
 | Scenario | Script | Selected Target | Used Selector | AQ | Evidence | Evidence Path | Report Contains Claude Web | Status | Last Tested |
 |---|---|---|---|---:|---:|---|---:|---:|---|
 | Claude Web escalation | `scripts/e2e_agent_uses_claude_web.py` | Claude Web | `body_marker:claude` | PASS | ✅ | `runtime/evidence/web_ai/claude/20260602_025237` | ✅ | PASS | 2026-06-02T02:52:37 |
+| Claude Workspace reuse | `scripts/e2e_claude_workspace_live.py` | Claude Web | `body_fallback` | PARTIAL | ✅ | `runtime/evidence/web_ai/claude/20260602_121124` | ✅ | FAIL | 2026-06-02T12:11:14 |
 
 ## Report schema
 

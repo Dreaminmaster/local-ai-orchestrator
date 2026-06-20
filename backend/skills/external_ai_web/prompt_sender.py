@@ -128,6 +128,7 @@ class PromptSender:
             "send_success": True,
             "used_input_strategy": used_input_strategy,
             "used_send_strategy": used_send_strategy,
+            "prompt_timestamp": datetime.now().isoformat(),
         }
 
     async def _save_failure_artifacts(self, page, provider: str, stage: str, errors: list[str]):

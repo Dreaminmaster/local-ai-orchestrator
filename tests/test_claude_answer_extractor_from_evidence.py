@@ -136,6 +136,46 @@ class ClaudeAnswerExtractorEvidenceTest(unittest.IsolatedAsyncioTestCase):
 
         self.assertNotIn("captcha", quality["issues"])
 
+    async def test_page_error_banner_is_not_assistant_answer(self):
+        page = _FakePage(
+            {
+                "main [class*='font-claude']": [
+                    "Network error. Unable to connect. Reconnecting...",
+                ]
+            },
+            "Network error. Unable to connect. Reconnecting...",
+        )
+        extractor = AnswerExtractor()
+
+        answer = await extractor.latest(page, "claude", PROMPT)
+
+        self.assertEqual(extractor.used_selector, "body_fallback")
+        self.assertTrue(extractor.used_body_fallback)
+        self.assertIn("Network error", answer)
+        rejected = [
+            item for item in extractor.candidate_selectors
+            if item.get("rejected_reason") == "page_error_banner"
+        ]
+        self.assertTrue(rejected)
+
+    async def test_complete_assistant_answer_with_old_unavailable_banner(self):
+        answer = (
+            "检查 NameError 中的变量名是否拼写正确，并确保变量在使用前已经定义或导入。"
+            "如果变量位于其他作用域，请通过参数传入或调整作用域。"
+        )
+        page = _FakePage(
+            {"[class*='font-claude']": [answer]},
+            answer + "\nClaude Fable 5 is currently unavailable.\nLearn more",
+        )
+        extractor = AnswerExtractor()
+
+        extracted = await extractor.latest(page, "claude", "如何修复 Python NameError？")
+
+        self.assertEqual(extracted, answer)
+        self.assertEqual(extractor.used_selector, "[class*='font-claude']")
+        self.assertEqual(extractor.warning_class, "non_blocking_warning")
+        self.assertIn("currently unavailable", extractor.warning_text)
+
 
 if __name__ == "__main__":
     unittest.main()

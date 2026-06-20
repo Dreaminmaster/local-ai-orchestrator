@@ -10,6 +10,7 @@ class BrowserProfileManager:
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.playwright = None
         self.contexts: dict[str, Any] = {}
+        self.last_launch_details: dict[str, dict] = {}
 
     async def start(self):
         if self.playwright is None:
@@ -23,23 +24,48 @@ class BrowserProfileManager:
             return self.contexts[profile_name]
         profile_dir = self.base_dir / profile_name
         profile_dir.mkdir(parents=True, exist_ok=True)
-        context = await self.playwright.chromium.launch_persistent_context(
-            user_data_dir=str(profile_dir),
-            headless=headless,
-            viewport={"width": 1440, "height": 1000},
-            args=["--disable-blink-features=AutomationControlled", "--start-maximized"],
-        )
+        details = {
+            "profile_dir": str(profile_dir.resolve()),
+            "headless": headless,
+            "browser_started": False,
+            "page_created": False,
+            "visible_window_expected": not headless,
+        }
+        self.last_launch_details[profile_name] = details
+        try:
+            context = await self.playwright.chromium.launch_persistent_context(
+                user_data_dir=str(profile_dir.resolve()),
+                headless=headless,
+                viewport={"width": 1440, "height": 1000},
+                args=[
+                    "--disable-blink-features=AutomationControlled",
+                    "--start-maximized",
+                ],
+            )
+        except Exception as exc:
+            details["failure_reason"] = str(exc)
+            raise
+        details["browser_started"] = True
         self.contexts[profile_name] = context
         return context
 
     async def new_page(self, profile_name: str, headless: bool = False):
         context = await self.get_context(profile_name, headless=headless)
-        if context.pages:
-            return context.pages[0]
-        return await context.new_page()
+        page = context.pages[0] if context.pages else await context.new_page()
+        self.last_launch_details.setdefault(profile_name, {})["page_created"] = True
+        try:
+            await page.bring_to_front()
+        except Exception as exc:
+            self.last_launch_details[profile_name]["bring_to_front_error"] = str(exc)
+        return page
+
+    async def close_context(self, profile_name: str):
+        context = self.contexts.pop(profile_name, None)
+        if context is not None:
+            await context.close()
 
     async def close_all(self):
-        for ctx in self.contexts.values():
+        for ctx in list(self.contexts.values()):
             await ctx.close()
         self.contexts.clear()
         if self.playwright:

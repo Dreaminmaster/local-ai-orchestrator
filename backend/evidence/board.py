@@ -6,11 +6,12 @@ import json
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
+from backend.runtime_paths import resolve_runtime_paths
 
 
 class EvidenceBoard:
-    def __init__(self, root: str = "runtime/evidence"):
-        self.root = Path(root)
+    def __init__(self, root: str | Path | None = None):
+        self.root = Path(root) if root else resolve_runtime_paths().ensure().evidence_dir
         self.root.mkdir(parents=True, exist_ok=True)
 
     def _task_path(self, task_id: str) -> Path:
@@ -90,4 +91,3 @@ class EvidenceBoard:
             f"- {e.get('type')} from {e.get('source')}: {e.get('summary') or str(e.get('content', ''))[:120]}"
             for e in entries
         )
-

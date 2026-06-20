@@ -3,6 +3,7 @@
 from __future__ import annotations
 import asyncio
 import os
+import platform
 from .base import Skill, SkillResult, RiskLevel
 
 
@@ -53,6 +54,19 @@ class ShellSkill(Skill):
         # Working directory
         cwd = context.get("cwd", os.getcwd())
         timeout = context.get("timeout", 60)
+        env = os.environ.copy()
+        if platform.system() == "Darwin":
+            common_paths = [
+                "/usr/local/bin",
+                "/opt/homebrew/bin",
+                "/Library/Frameworks/Python.framework/Versions/Current/bin",
+                "/usr/bin",
+                "/bin",
+                "/usr/sbin",
+                "/sbin",
+            ]
+            existing = env.get("PATH", "").split(":")
+            env["PATH"] = ":".join(dict.fromkeys(common_paths + existing))
 
         try:
             process = await asyncio.create_subprocess_shell(
@@ -60,6 +74,7 @@ class ShellSkill(Skill):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=cwd,
+                env=env,
             )
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(), timeout=timeout
@@ -81,6 +96,7 @@ class ShellSkill(Skill):
                 skill=self.name,
                 success=success,
                 result=stdout_text if success else stderr_text,
+                evidence=[f"shell:{command}"],
                 error=stderr_text if not success else None,
                 metadata={
                     "command": command,

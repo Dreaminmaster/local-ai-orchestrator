@@ -7,9 +7,11 @@ dist/
 build/
 venv/
 .venv/
+.build-venv/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+*.spec
 
 # Environment
 .env
@@ -21,6 +23,17 @@ runtime/
 .orchestrator_snapshots/
 .playwright-browsers/
 *.log
+node_modules/
+target/
+apps/desktop/node_modules/
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/bin/local-ai-orchestrator-backend
+apps/desktop/src-tauri/bin/local-ai-orchestrator-backend-*
+smoke_artifacts/
+smoke_install/
+smoke_dmg_staging/
+smoke_dmg_independence_staging/
+user_test_artifacts/*.dmg
 
 # Test fixtures (intentionally broken)
 tests/fixtures/broken_python_syntax/

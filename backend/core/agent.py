@@ -29,15 +29,42 @@ from backend.local_model.tool_result_summarizer import ToolResultSummarizer
 from backend.local_model.step_state import StepStateManager
 from backend.local_model.external_ai_escalation import ExternalAIEscalationRouter
 from backend.local_model.step_state_store import StepStateStore
+from backend.core.task_action_compiler import TaskActionCompiler
+from backend.core.task_artifact_store import TaskArtifactStore
+from backend.core.product_errors import product_error
+from backend.skills.external_ai_web.pending_action import pending_external_ai_store
+from backend.settings_store import SettingsStore
 
 
-def create_llm_provider() -> LLMProvider:
-    """Create the appropriate LLM provider based on config."""
-    provider = os.getenv("LLM_PROVIDER", "lmstudio")
+def create_llm_provider(role: str = "planner") -> LLMProvider:
+    """Create a role-aware local provider from product settings, with env fallback."""
+    settings = SettingsStore().load().get("local_models", {})
+    role_value = str((settings.get("roles") or {}).get(role) or "")
+    provider = str(settings.get("default_provider") or os.getenv("LLM_PROVIDER", "lmstudio"))
+    model = str(settings.get("default_model") or "")
+    if ":" in role_value:
+        provider, model = role_value.split(":", 1)
+    elif role_value:
+        model = role_value
+    config = settings.get(provider, {}) if provider in {"lmstudio", "ollama"} else {}
+    if not config.get("enabled", True):
+        fallback_provider = next(
+            (
+                name
+                for name in ("lmstudio", "ollama")
+                if settings.get(name, {}).get("enabled")
+            ),
+            provider,
+        )
+        provider = fallback_provider
+        config = settings.get(provider, {})
+    model = model or str(config.get("default_model") or "") or None
+    endpoint = str(config.get("endpoint") or "").rstrip("/")
     if provider == "ollama":
-        return OllamaProvider()
+        return OllamaProvider(base_url=endpoint or None, model=model)
     elif provider == "lmstudio":
-        return LMStudioProvider()
+        base_url = f"{endpoint}/v1" if endpoint and not endpoint.endswith("/v1") else endpoint
+        return LMStudioProvider(base_url=base_url or None, model=model)
     else:
         return OpenAICompatibleProvider()
 
@@ -67,15 +94,15 @@ class Agent:
     """
 
     def __init__(self, db=None):
-        self.llm = create_llm_provider()
+        self.llm = create_llm_provider("planner")
         self.goal_interpreter = GoalInterpreter(self.llm)
         self.planner = TaskPlanner(self.llm)
-        self.gap_detector = CapabilityGapDetector(self.llm)
+        self.gap_detector = CapabilityGapDetector(create_llm_provider("executor"))
         self.skill_router = SkillRouter()
-        self.verifier = Verifier(self.llm)
-        self.failure_handler = FailureHandler(self.llm)
+        self.verifier = Verifier(create_llm_provider("verifier"))
+        self.failure_handler = FailureHandler(create_llm_provider("repair"))
         self.supervisor = Supervisor()
-        self.reporter = Reporter(self.llm)
+        self.reporter = Reporter(create_llm_provider("summarizer"))
         self.observer = Observer()
         self.evidence_board = EvidenceBoard()
         self.task_memory = TaskMemory()
@@ -85,6 +112,8 @@ class Agent:
         self.step_state_manager = StepStateManager()
         self.escalation_router = ExternalAIEscalationRouter()
         self.step_state_store = StepStateStore()
+        self.task_action_compiler = TaskActionCompiler()
+        self.task_artifact_store = TaskArtifactStore()
 
     async def run(self, user_input: str) -> AsyncGenerator[AgentEvent, None]:
         """
@@ -297,6 +326,7 @@ class Agent:
             "goal_contract": goal_contract,
             "authorization_contract": authorization_contract,
         }
+        self.task_artifact_store.initialize(task_id, goal_contract, authorization_contract)
 
         yield AgentEvent("goal_contract", {"goal_contract": goal_contract})
         yield AgentEvent(
@@ -334,7 +364,51 @@ class Agent:
                 for k, v in self.skill_router.get_all_skills().items()
             ],
         )
-        plan = await self.planner.create_plan_from_optimized_context(initial_context)
+        compiled_steps = self.task_action_compiler.compile(
+            goal_contract, authorization_contract
+        )
+        structured_plan = bool(compiled_steps)
+        if compiled_steps:
+            plan = {
+                "plan": compiled_steps,
+                "total_steps": len(compiled_steps),
+                "source": "structured_local_action_compiler",
+                "local_model_status": "FALLBACK_USED",
+                "fallback_used": True,
+            }
+        else:
+            plan = await self.planner.create_plan_from_optimized_context(initial_context)
+        self.task_artifact_store.save_plan(task_id, plan)
+        self.task_artifact_store.update_state(
+            task_id,
+            status="planned",
+            plan_source=plan.get("source", "local_model"),
+            local_model_status=plan.get("local_model_status", "READY"),
+            fallback_used=bool(plan.get("fallback_used")),
+        )
+        if plan.get("fallback_used"):
+            model_status = plan.get("local_model_status", "LOCAL_MODEL_ERROR")
+            model_message = (
+                "本地模型不可用，已切换规则规划"
+                if model_status == "LOCAL_MODEL_UNAVAILABLE"
+                else "本地模型返回错误，已切换规则规划"
+            )
+            self.evidence_board.save(
+                task_id,
+                None,
+                "local_model_status",
+                "planner",
+                plan.get("local_model_error_summary", model_status),
+                model_message,
+            )
+            yield AgentEvent(
+                "local_model_status",
+                {
+                    "status": model_status,
+                    "fallback_used": True,
+                    "message": model_message,
+                },
+            )
         yield AgentEvent("plan", {"plan": plan})
         steps = plan.get("plan", [])
         if not steps:
@@ -355,8 +429,24 @@ class Agent:
             yield AgentEvent(
                 "step_start",
                 {
+                    "task_id": task_id,
                     "step": current_step_index + 1,
                     "total": len(steps),
+                    "goal": step.get("goal", ""),
+                    "skills": step.get("needed_skills", []),
+                },
+            )
+            self.task_artifact_store.update_state(
+                task_id,
+                status="running",
+                current_step=current_step_index + 1,
+                total_steps=len(steps),
+            )
+            self.task_artifact_store.append_step_log(
+                task_id,
+                {
+                    "type": "step_start",
+                    "step": current_step_index + 1,
                     "goal": step.get("goal", ""),
                     "skills": step.get("needed_skills", []),
                 },
@@ -388,7 +478,11 @@ class Agent:
             state["optimized_context"] = optimized_context
             yield AgentEvent("optimized_context", {"context": optimized_context})
             yield AgentEvent("observer_state", {"state": state})
-            gap = await self.gap_detector.detect(step, state)
+            gap = (
+                {"requires_help": False, "gap_type": "none"}
+                if step.get("structured_action")
+                else await self.gap_detector.detect(step, state)
+            )
             if gap.get("requires_help"):
                 yield AgentEvent("gap_detected", {"gap": gap})
             skill_chain = self.skill_router.select(step, gap, authorization_contract)
@@ -412,9 +506,113 @@ class Agent:
                 "gap": gap,
                 "previous_results": all_results[-3:],
             }
+            context.update(
+                self._materialize_tool_context(
+                    step, authorization_contract, all_results
+                )
+            )
+            if context.get("pending_external_ai_mock"):
+                pending = pending_external_ai_store.save(
+                    task_id=task_id,
+                    step_id=step_id,
+                    provider="claude",
+                    original_prompt=goal_contract.get("original_input", ""),
+                    redacted_prompt="[simulated pending external AI prompt]",
+                    context={"simulation": True},
+                    provider_status="NEED_LOGIN",
+                    failure_reason="pending_external_ai_mock",
+                    suggested_user_action="Open Claude Workspace and log in, then click Recheck/Resume",
+                )
+                self.task_artifact_store.update_state(
+                    task_id,
+                    status="needs_user",
+                    failure_reason="pending_external_ai_mock",
+                    product_error=product_error(
+                        "EXTERNAL_AI_NEED_LOGIN", detail="pending_external_ai_mock"
+                    ),
+                    pending_external_ai=True,
+                )
+                yield AgentEvent(
+                    "external_ai_need_user",
+                    {
+                        "task_id": task_id,
+                        "provider": "claude",
+                        "reason": "pending_external_ai_mock",
+                        "suggested_user_action": pending.get("suggested_user_action"),
+                    },
+                )
+                yield AgentEvent(
+                    "external_ai_pending_saved",
+                    {"task_id": task_id, "pending": pending},
+                )
+                yield AgentEvent(
+                    "stopped",
+                    {
+                        "task_id": task_id,
+                        "reason": "external_ai_need_user",
+                        "status": "needs_user",
+                        "resume_payload": {"task_id": task_id, "resume_from_task_id": task_id},
+                    },
+                )
+                return
             chain_results = await self.skill_router.execute_chain(
                 skill_chain, instruction, context
             )
+            pending_external_ai = next(
+                (
+                    r.get("metadata", {}).get("pending_external_ai")
+                    for r in chain_results
+                    if r.get("metadata", {}).get("need_user_intervention")
+                    and r.get("metadata", {}).get("pending_external_ai")
+                ),
+                None,
+            )
+            if pending_external_ai:
+                s = self.step_state_manager.get(task_id)
+                s.current_step_index = current_step_index
+                s.goal_contract = goal_contract
+                s.authorization_contract = authorization_contract
+                s.plan_steps = steps
+                s.next_actions.append(
+                    {
+                        "type": "pending_external_ai",
+                        "provider": pending_external_ai.get("provider"),
+                        "failure_reason": pending_external_ai.get("failure_reason"),
+                    }
+                )
+                self.step_state_store.save(s)
+                self.task_artifact_store.update_state(
+                    task_id,
+                    status="needs_user",
+                    failure_reason=pending_external_ai.get("failure_reason", ""),
+                    product_error=product_error(
+                        "EXTERNAL_AI_NEED_LOGIN",
+                        detail=pending_external_ai.get("failure_reason", ""),
+                    ),
+                    pending_external_ai=True,
+                )
+                yield AgentEvent(
+                    "external_ai_need_user",
+                    {
+                        "task_id": task_id,
+                        "provider": pending_external_ai.get("provider"),
+                        "reason": pending_external_ai.get("failure_reason"),
+                        "suggested_user_action": pending_external_ai.get("suggested_user_action"),
+                    },
+                )
+                yield AgentEvent(
+                    "external_ai_pending_saved",
+                    {"task_id": task_id, "pending": pending_external_ai},
+                )
+                yield AgentEvent(
+                    "stopped",
+                    {
+                        "task_id": task_id,
+                        "reason": "external_ai_need_user",
+                        "resume_payload": {"task_id": task_id, "resume_from_task_id": task_id},
+                    },
+                )
+                return
             for r in chain_results:
                 if authorization_contract.get(
                     "authorization_mode"
@@ -439,6 +637,8 @@ class Agent:
                 summarized = self.tool_summarizer.summarize(
                     r.get("skill", "unknown"), r
                 )
+                if step.get("tool_context", {}).get("continue_on_failure"):
+                    summarized.setdefault("metadata", {})["expected_failure"] = True
                 r["summary"] = summarized
                 all_evidence.extend(evidence_entries)
                 all_results.append(summarized)
@@ -446,6 +646,15 @@ class Agent:
             yield AgentEvent(
                 "step_result",
                 {
+                    "step": current_step_index + 1,
+                    "success": step_success,
+                    "results": chain_results,
+                },
+            )
+            self.task_artifact_store.append_step_log(
+                task_id,
+                {
+                    "type": "step_result",
                     "step": current_step_index + 1,
                     "success": step_success,
                     "results": chain_results,
@@ -479,7 +688,26 @@ class Agent:
                         "Unknown",
                     ),
                 }
-                repair = await self.failure_handler.diagnose(failure_info, state)
+                repair = (
+                    self._structured_failure_repair(failure_info)
+                    if structured_plan
+                    else await self.failure_handler.diagnose(failure_info, state)
+                )
+                if step.get("tool_context", {}).get("continue_on_failure"):
+                    yield AgentEvent("failure_repair", {"repair": repair})
+                    self.step_state_manager.mark_completed(
+                        task_id,
+                        step,
+                        {"results": chain_results, "expected_failure": True},
+                    )
+                    self.step_state_store.save(self.step_state_manager.get(task_id))
+                    consecutive_failures = 0
+                    current_step_index += 1
+                    continue
+                if structured_plan:
+                    yield AgentEvent("failure_repair", {"repair": repair})
+                    current_step_index += 1
+                    continue
                 step_state_now = self.step_state_manager.get(task_id)
                 if self.escalation_router.should_escalate(
                     repair.get("failure_type", ""),
@@ -566,15 +794,52 @@ class Agent:
                 )
                 break
 
-        verification = await self.verifier.check_with_contracts(
-            goal_contract, authorization_contract, all_results, all_evidence
+        verification = (
+            self.verifier._heuristic_verify(
+                goal_contract.get("success_criteria", []),
+                self.verifier._map_evidence(
+                    goal_contract.get("success_criteria", []), all_evidence
+                ),
+                all_results,
+            )
+            if structured_plan
+            else await self.verifier.check_with_contracts(
+                goal_contract, authorization_contract, all_results, all_evidence
+            )
         )
         yield AgentEvent("verification", {"result": verification})
-        report = await self.reporter.generate_with_contracts(
-            goal_contract,
-            authorization_contract,
-            steps=[{"index": i, **r} for i, r in enumerate(all_results)],
-            evidence=all_evidence,
+        report_steps = [{"index": i, **r} for i, r in enumerate(all_results)]
+        report = (
+            self.reporter._fallback_contract_report(
+                goal_contract,
+                authorization_contract,
+                report_steps,
+                all_evidence,
+            )
+            if structured_plan
+            else await self.reporter.generate_with_contracts(
+                goal_contract,
+                authorization_contract,
+                steps=report_steps,
+                evidence=all_evidence,
+            )
+        )
+        report_path = self.task_artifact_store.save_report(task_id, report)
+        final_status = (
+            "success" if verification.get("verified", False) else "completed_unverified"
+        )
+        self.task_artifact_store.update_state(
+            task_id,
+            status=final_status,
+            verified=verification.get("verified", False),
+            evidence_count=len(all_evidence),
+            report_path=str(report_path),
+            failure_reason=""
+            if verification.get("verified", False)
+            else verification.get("reason", "verification_failed"),
+            product_error=product_error("TASK_SUCCESS")
+            if verification.get("verified", False)
+            else {},
         )
         yield AgentEvent("report", {"report": report})
         yield AgentEvent(
@@ -582,7 +847,10 @@ class Agent:
             {
                 "task_id": task_id,
                 "verified": verification.get("verified", False),
+                "status": final_status,
                 "total_steps": len(all_results),
+                "evidence_count": len(all_evidence),
+                "report_path": str(report_path),
                 "success_rate": sum(1 for r in all_results if r.get("success"))
                 / max(len(all_results), 1),
             },
@@ -611,6 +879,7 @@ class Agent:
             yield AgentEvent(
                 "step_start",
                 {
+                    "task_id": task_id,
                     "step": current_step_index + 1,
                     "total": len(steps),
                     "goal": step.get("goal", ""),
@@ -639,9 +908,59 @@ class Agent:
                 "gap": gap,
                 "previous_results": all_results[-3:],
             }
+            context.update(
+                self._materialize_tool_context(
+                    step, authorization_contract, all_results
+                )
+            )
             chain_results = await self.skill_router.execute_chain(
                 skill_chain, instruction, context
             )
+            pending_external_ai = next(
+                (
+                    r.get("metadata", {}).get("pending_external_ai")
+                    for r in chain_results
+                    if r.get("metadata", {}).get("need_user_intervention")
+                    and r.get("metadata", {}).get("pending_external_ai")
+                ),
+                None,
+            )
+            if pending_external_ai:
+                s = self.step_state_manager.get(task_id)
+                s.current_step_index = current_step_index
+                s.goal_contract = goal_contract
+                s.authorization_contract = authorization_contract
+                s.plan_steps = steps
+                s.next_actions.append(
+                    {
+                        "type": "pending_external_ai",
+                        "provider": pending_external_ai.get("provider"),
+                        "failure_reason": pending_external_ai.get("failure_reason"),
+                    }
+                )
+                self.step_state_store.save(s)
+                yield AgentEvent(
+                    "external_ai_need_user",
+                    {
+                        "task_id": task_id,
+                        "provider": pending_external_ai.get("provider"),
+                        "reason": pending_external_ai.get("failure_reason"),
+                        "suggested_user_action": pending_external_ai.get("suggested_user_action"),
+                    },
+                )
+                yield AgentEvent(
+                    "external_ai_pending_saved",
+                    {"task_id": task_id, "pending": pending_external_ai},
+                )
+                yield AgentEvent(
+                    "stopped",
+                    {
+                        "task_id": task_id,
+                        "reason": "external_ai_need_user",
+                        "resume_payload": {"task_id": task_id, "resume_from_task_id": task_id},
+                    },
+                )
+                return
             for r in chain_results:
                 evidence_entries = self.evidence_board.save_from_result(
                     task_id, step_id, r
@@ -704,6 +1023,9 @@ class Agent:
             {
                 "task_id": task_id,
                 "verified": verification.get("verified", False),
+                "status": "success"
+                if verification.get("verified", False)
+                else "completed_unverified",
                 "resumed": True,
             },
         )
@@ -740,6 +1062,8 @@ Authorization Contract: {json.dumps(authorization_contract, ensure_ascii=False)}
 
     async def _generate_instruction(self, goal: dict, step: dict, gap: dict) -> str:
         """Generate a specific instruction for skill execution."""
+        if step.get("structured_action"):
+            return step.get("goal", "Execute structured local action")
         messages = [
             LLMMessage(
                 role="system",
@@ -759,3 +1083,66 @@ Authorization Contract: {json.dumps(authorization_contract, ensure_ascii=False)}
             return resp.content
         except Exception:
             return step.get("goal", "Execute task")
+
+    def _structured_failure_repair(self, failure_info: dict) -> dict:
+        """Diagnose deterministic task failures without depending on the LLM."""
+        error = str(failure_info.get("error") or "Unknown")
+        plan = self.failure_handler.repair_planner.plan(
+            error,
+            failure_info.get("goal_contract") or {},
+            failure_info.get("authorization_contract") or {},
+        )
+        return {
+            "failure_type": plan.get("failure_type", "tool_failure"),
+            "symptom": error,
+            "possible_causes": ["Rule planner diagnosis"],
+            "repair_actions": plan.get("repair_actions", []),
+            "repair_plan": plan,
+            "can_auto_repair": plan.get("should_retry", False),
+            "should_retry": plan.get("should_retry", True),
+            "fallback_used": True,
+            "local_model_status": "FALLBACK_USED",
+        }
+
+    def _materialize_tool_context(
+        self,
+        step: dict,
+        authorization_contract: dict,
+        previous_results: list[dict],
+    ) -> dict:
+        """Resolve structured step parameters into concrete skill context."""
+        tool_context = dict(step.get("tool_context") or {})
+        resources = authorization_contract.get("provided_resources") or {}
+        project_path = str(resources.get("project_path") or "").strip()
+        if project_path:
+            tool_context.setdefault("cwd", project_path)
+            path = str(tool_context.get("path") or "").strip()
+            if path and not os.path.isabs(path):
+                tool_context["path"] = os.path.join(project_path, path)
+
+        if tool_context.pop("content_from_previous_stdout", False):
+            stdout = ""
+            for result in reversed(previous_results):
+                metadata = result.get("metadata") or {}
+                stdout = str(metadata.get("stdout") or "").strip()
+                if stdout:
+                    break
+            tool_context["content"] = (
+                str(tool_context.pop("content_prefix", ""))
+                + stdout
+                + str(tool_context.pop("content_suffix", ""))
+            )
+        if tool_context.pop("content_from_previous_result", False):
+            result_text = ""
+            for result in reversed(previous_results):
+                result_text = str(
+                    result.get("result") or result.get("summary") or ""
+                ).strip()
+                if result_text:
+                    break
+            tool_context["content"] = (
+                str(tool_context.pop("content_prefix", ""))
+                + result_text
+                + str(tool_context.pop("content_suffix", ""))
+            )
+        return tool_context

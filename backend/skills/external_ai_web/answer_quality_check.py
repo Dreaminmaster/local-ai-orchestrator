@@ -19,10 +19,10 @@ LOW_QUALITY_PATTERNS = {
         "captcha",
         "verify you are human",
         "human verification",
-        "security challenge",
-        "prove you are human",
+        "验证码",
         "人机验证",
-        "请验证你是人类",
+        "安全验证",
+        "请验证你是真人",
     ],
     "error_page": [
         "something went wrong",
@@ -46,13 +46,15 @@ LOW_QUALITY_PATTERNS = {
     ],
     "network_error": [
         "network error",
-        "connection",
-        "timeout",
-        "dns",
-        "refused",
-        "无法连接",
+        "connection lost",
+        "connection failed",
+        "unable to connect",
+        "request timed out",
+        "reconnecting",
         "网络错误",
-        "超时",
+        "无法连接",
+        "连接失败",
+        "请求超时",
     ],
     "not_loaded": ["loading", "please wait", "connecting", "initializing", "加载中"],
 }
@@ -61,7 +63,14 @@ LOW_QUALITY_PATTERNS = {
 class AnswerQualityChecker:
     LOW_MIN_CHARS = 20
 
-    def check(self, answer: str) -> dict:
+    def check(
+        self,
+        answer: str,
+        *,
+        reliable_answer: bool = True,
+        warning_text: str = "",
+        warning_class: str = "",
+    ) -> dict:
         answer = (answer or "").strip()
         result = {
             "quality": "PASS",
@@ -78,6 +87,26 @@ class AnswerQualityChecker:
         for category, patterns in LOW_QUALITY_PATTERNS.items():
             if any(p and p in lower for p in patterns):
                 result["issues"].append(category)
+
+        if not reliable_answer:
+            result["quality"] = "FAIL"
+            result["issues"].append("unreliable_answer_source")
+            result["reliable"] = False
+            return result
+
+        warning_class = warning_class or (
+            "non_blocking_warning" if warning_text else ""
+        )
+        result["warning_text"] = warning_text
+        result["warning_class"] = warning_class
+
+        if warning_class == "non_blocking_warning":
+            result["quality"] = "PASS_WITH_WARNING"
+            result["issues"] = [
+                issue for issue in result["issues"] if issue != "error_page"
+            ]
+            result["reliable"] = True
+            return result
 
         if result["issues"]:
             result["quality"] = "PARTIAL"
