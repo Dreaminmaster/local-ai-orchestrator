@@ -1,5 +1,15 @@
 # 🧠 Local AI Self-Supervised Orchestrator
 
+## 下载最新版 macOS App
+
+当前推荐版本：**v0.3.0-arm64-self-use-final**
+
+- [查看 GitHub Release 页面](https://github.com/Dreaminmaster/local-ai-orchestrator/releases/tag/v0.3.0-arm64-self-use-final)
+- [直接下载 Apple Silicon arm64 unsigned DMG](https://github.com/Dreaminmaster/local-ai-orchestrator/releases/download/v0.3.0-arm64-self-use-final/Local-AI-Orchestrator-final-complete-arm64-unsigned.dmg)
+- SHA-256: `e5140d85426eb8665136a5ca24f219524833d4a3e58be08febc42f2a8308ec15`
+
+说明：这是未签名、未公证的自用 macOS 版本。首次打开时 macOS 可能提示无法验证开发者，请使用右键打开。LM Studio 需要用户自己启动本地 server；Claude / ChatGPT / Gemini / Kimi / 豆包可在 App 内自行登录和测试。
+
 > 📖 不熟悉命令行？请看 → [QUICK_START.md](QUICK_START.md)
 
 > 本地 AI 自监督总控系统 — 让能力有限的本地模型学会借助更强工具、外部 AI 和电脑环境来完成复杂任务。
