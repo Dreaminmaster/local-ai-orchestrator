@@ -268,7 +268,12 @@ async def open_workspace(provider: str, payload: dict = Body(default_factory=dic
     request_id = str(payload.get("request_id") or uuid.uuid4().hex)
     workspace_manager.open_request_ids[provider] = request_id
     current = await workspace_manager.get_workspace_status(provider)
-    if current.state in {ProviderState.OPENING, ProviderState.READY, ProviderState.BUSY}:
+    if current.state == ProviderState.OPENING:
+        current.request_id = request_id
+        return current.to_dict()
+    if current.state in {ProviderState.READY, ProviderState.BUSY, ProviderState.OPEN}:
+        await workspace_manager.open_workspace(provider)
+        current = await workspace_manager.get_workspace_status(provider)
         current.request_id = request_id
         return current.to_dict()
     browser_status = playwright_status_payload()

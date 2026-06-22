@@ -17,6 +17,7 @@ class FakePage:
         self.text = text
         self.input_visible = input_visible
         self.closed = False
+        self.bring_to_front_calls = 0
 
     def is_closed(self):
         return self.closed
@@ -26,6 +27,9 @@ class FakePage:
 
     async def goto(self, url, **kwargs):
         self.url = url
+
+    async def bring_to_front(self):
+        self.bring_to_front_calls += 1
 
 
 class FakeLocator:
@@ -80,6 +84,43 @@ class ExternalAIWorkspaceSingleOwnerTests(unittest.IsolatedAsyncioTestCase):
             self.assertIs(first, second)
             self.assertEqual(manager.browser.new_page_calls, 1)
             self.assertTrue(manager.workspace_reused["claude"])
+            status = await manager.get_workspace_status("claude")
+            self.assertTrue(status.workspace_reused)
+            self.assertTrue(status.workspace_already_open)
+            self.assertTrue(status.same_window_focused)
+            self.assertFalse(status.new_context_created)
+            self.assertFalse(status.second_context_created)
+            self.assertTrue(status.workspace_id.startswith("claude-"))
+
+    async def test_second_open_focuses_existing_workspace_and_keeps_workspace_id(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = self.make_manager(tmp)
+            first = await manager.open_workspace("claude")
+            first_status = await manager.get_workspace_status("claude")
+            second = await manager.open_workspace("claude")
+            second_status = await manager.get_workspace_status("claude")
+            self.assertIs(first, second)
+            self.assertEqual(manager.browser.new_page_calls, 1)
+            self.assertEqual(first_status.workspace_id, second_status.workspace_id)
+            self.assertTrue(second_status.workspace_reused)
+            self.assertTrue(second_status.workspace_already_open)
+            self.assertTrue(second_status.same_window_focused)
+            self.assertFalse(second_status.new_context_created)
+            self.assertFalse(second_status.second_context_created)
+            self.assertGreaterEqual(first.bring_to_front_calls, 1)
+
+    async def test_kimi_second_open_uses_same_semantics(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = self.make_manager(tmp)
+            first = await manager.open_workspace("kimi")
+            second = await manager.open_workspace("kimi")
+            status = await manager.get_workspace_status("kimi")
+            self.assertIs(first, second)
+            self.assertEqual(manager.browser.new_page_calls, 1)
+            self.assertTrue(status.workspace_reused)
+            self.assertTrue(status.workspace_already_open)
+            self.assertTrue(status.same_window_focused)
+            self.assertFalse(status.second_context_created)
 
     async def test_two_provider_requests_run_serially(self):
         with tempfile.TemporaryDirectory() as tmp:

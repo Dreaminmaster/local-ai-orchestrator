@@ -97,6 +97,38 @@ class RealProjectRunnerTests(unittest.TestCase):
             commands = state["goal_contract"]["verification_commands"]
             self.assertIn("python3 main.py", commands)
 
+    def test_generic_print_name_error_is_repaired_and_verified_by_entry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "project"
+            tasks = Path(tmp) / "tasks"
+            root.mkdir()
+            (root / "main.py").write_text("print(message)\n", encoding="utf-8")
+            runner = RealProjectRunner(tasks)
+
+            result = runner.run(root, "repair plain NameError")
+
+            self.assertEqual(result["final_status"], "PASS")
+            self.assertIn("message =", (root / "main.py").read_text(encoding="utf-8"))
+
+    def test_generic_wrong_local_import_is_repaired_without_pip_install(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "project"
+            tasks = Path(tmp) / "tasks"
+            root.mkdir()
+            (root / "utils.py").write_text(
+                "def build_message():\n    return 'ok'\n", encoding="utf-8"
+            )
+            (root / "main.py").write_text(
+                "from missing_utils import build_message\nprint(build_message())\n",
+                encoding="utf-8",
+            )
+            runner = RealProjectRunner(tasks)
+
+            result = runner.run(root, "repair local import")
+
+            self.assertEqual(result["final_status"], "PASS")
+            self.assertIn("from utils import build_message", (root / "main.py").read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

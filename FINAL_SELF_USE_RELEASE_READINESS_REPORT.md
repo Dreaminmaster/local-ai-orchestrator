@@ -74,3 +74,28 @@ Preferred current artifact:
 - Sidecar cleanup: PASS
 
 This build supersedes the previous arm64 self-use DMG for local daily use.
+## v0.3.2 Readiness Addendum - 2026-06-21
+
+- New unsigned arm64 DMG generated for generic repair and workspace reuse fixes.
+- Architecture audit: PASS, x86_64-only count 0.
+- Isolated install smoke: PASS.
+- Packaged generic repair smoke: PASS.
+- Packaged workspace reuse smoke: PASS.
+- No live provider prompt was sent.
+- Recommended replacement decision: use v0.3.2 if backend/API repair and workspace semantics are the priority; rebuild Tauri shell once a matching arm64 Rust target is available to include the latest display-only Provider Console wording.
+
+## v0.3.3 Readiness Addendum - 2026-06-22
+
+- Full Tauri arm64 rebuild completed with an isolated temporary Rust toolchain.
+- FlyEnv and global shell environment were not modified.
+- New unsigned DMG:
+  `/Users/johnwick/Documents/codex/local-ai-orchestrator-chat-artifacts-20260612/generated-artifacts/Local-AI-Orchestrator-v0.3.3-arm64-full-tauri-generic-repair-workspace-reuse-unsigned.dmg`
+- SHA-256:
+  `d42ead9ec6d6f3de2d39bdc7a98bac7be5dea25f4fb986e3afb3e69705bc2749`
+- Architecture audit: PASS, x86_64-only count 0.
+- Latest frontend and backend are packaged together.
+- Generic Repair packaged smoke: PASS.
+- Workspace Reuse packaged smoke: PASS.
+- Realtime events and final report smoke: PASS.
+- 8422 / 8423 cleanup: PASS.
+- Recommended replacement decision: v0.3.3 should replace v0.3.1/v0.3.2 as the main self-use candidate after user confirmation.

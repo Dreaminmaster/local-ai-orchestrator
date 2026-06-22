@@ -2017,7 +2017,9 @@ function renderProviderWorkspaceConsoleCard(provider, data) {
     <dl>
       <dt>当前 URL</dt><dd>${escapeHtml(data.current_url || data.page_url || "—")}</dd>
       <dt>窗口所有者</dt><dd>${escapeHtml(data.owner_type || "—")} ${data.owner_pid ? `PID ${escapeHtml(String(data.owner_pid))}` : ""}</dd>
-      <dt>复用状态</dt><dd>workspace_reused=${data.workspace_reused ? "true" : "false"} · second_context=${data.second_context_created ? "true" : "false"}</dd>
+      <dt>workspace</dt><dd>${escapeHtml(data.workspace_id || "—")} · ${data.workspace_already_open ? "已打开" : "未打开"}</dd>
+      <dt>复用状态</dt><dd>${data.workspace_reused ? "已复用" : "新建/未复用"} · ${data.same_window_focused ? "已聚焦" : "未聚焦"} · new_context=${data.new_context_created ? "true" : "false"} · second_context=${data.second_context_created ? "true" : "false"}</dd>
+      <dt>最近打开/聚焦</dt><dd>${escapeHtml(data.opened_at || "—")} / ${escapeHtml(data.last_focused_at || "—")}</dd>
       <dt>最近 prompt</dt><dd>${escapeHtml(exchange.last_prompt || "—")}</dd>
       <dt>最近回答</dt><dd>${escapeHtml(exchange.last_answer_preview || "—")}</dd>
       <dt>质量</dt><dd>${escapeHtml(quality.quality || "—")} ${quality.reason ? `· ${escapeHtml(quality.reason)}` : ""}</dd>
@@ -2075,11 +2077,13 @@ function renderWorkspaceStatus(data) {
     profile: ${escapeHtml(data.profile_dir || "runtime/browser_profiles/claude")}<br>
     url: ${escapeHtml(data.page_url || "—")}<br>
     request: ${escapeHtml(data.request_id || "—")}<br>
+    workspace: ${escapeHtml(data.workspace_id || "—")} · ${data.workspace_already_open ? "工作区已打开" : "工作区未打开"}<br>
     browser: ${data.browser_started ? "started" : "not started"} · page: ${data.page_created ? "created" : "not created"} · visible window: ${data.visible_window_expected ? "expected" : "no"}<br>
     所有者：${escapeHtml(data.owner_type || "—")}${data.owner_pid ? ` · PID ${escapeHtml(String(data.owner_pid))}` : ""}<br>
     当前状态：${escapeHtml(data.active_request_id ? "正在回答" : "空闲")}<br>
     最后使用：${escapeHtml(data.last_activity_at || "—")}<br>
-    workspace reused: ${data.workspace_reused ? "yes" : "no"} · second context: ${data.second_context_created ? "yes" : "no"}<br>
+    workspace reused: ${data.workspace_reused ? "yes" : "no"} · focused: ${data.same_window_focused ? "yes" : "no"} · new context: ${data.new_context_created ? "yes" : "no"} · second context: ${data.second_context_created ? "yes" : "no"}<br>
+    最近聚焦：${escapeHtml(data.last_focused_at || "—")}<br>
     ${needsUser ? `<span class="warning-text">请在 Claude 工作区窗口完成登录/验证/页面处理，然后点击“我已处理，继续”。</span><br><small>${escapeHtml(actionText)}</small><br>` : ""}
     ${data.can_resume ? "<span class=\"success-text\">可继续任务</span><br>" : ""}
     ${data.failure_code ? `<span class="warning-text">${escapeHtml(workspaceFailureLabel(data.failure_code, data.failure_reason))}</span><br><button class="btn-secondary" onclick="openAppData()">查看详细日志</button>` : ""}

@@ -87,8 +87,13 @@ class WorkspaceStatus:
     app_instance_id: str = ""
     last_activity_at: str = ""
     active_request_id: str = ""
+    workspace_id: str = ""
+    workspace_already_open: bool = False
     workspace_reused: bool = False
+    new_context_created: bool = False
     second_context_created: bool = False
+    same_window_focused: bool = False
+    last_focused_at: str = ""
     request_id: str = ""
     browser_started: bool = False
     page_created: bool = False
@@ -110,8 +115,13 @@ class WorkspaceStatus:
             "app_instance_id": self.app_instance_id,
             "last_activity_at": self.last_activity_at,
             "active_request_id": self.active_request_id,
+            "workspace_id": self.workspace_id,
+            "workspace_already_open": self.workspace_already_open,
             "workspace_reused": self.workspace_reused,
+            "new_context_created": self.new_context_created,
             "second_context_created": self.second_context_created,
+            "same_window_focused": self.same_window_focused,
+            "last_focused_at": self.last_focused_at,
             "request_id": self.request_id,
             "workspace_state": self.state.value,
             "browser_started": self.browser_started,
@@ -146,6 +156,11 @@ class ExternalAIWorkspaceManager:
         self.request_locks: dict[str, asyncio.Lock] = {}
         self.lifecycle_locks: dict[str, asyncio.Lock] = {}
         self.workspace_reused: dict[str, bool] = {}
+        self.workspace_ids: dict[str, str] = {}
+        self.workspace_already_open: dict[str, bool] = {}
+        self.new_context_created: dict[str, bool] = {}
+        self.same_window_focused: dict[str, bool] = {}
+        self.last_focused_at: dict[str, str] = {}
         self.open_request_ids: dict[str, str] = {}
         self.last_failure_codes: dict[str, str] = {}
         self.opening_providers: set[str] = set()
@@ -178,6 +193,24 @@ class ExternalAIWorkspaceManager:
             "profile_dir": str(profile_dir(provider, self.browser.base_dir)),
             "app_instance_id": self.app_instance_id,
         }
+
+    def _workspace_id(self, provider: str) -> str:
+        return self.workspace_ids.setdefault(provider, f"{provider}-{uuid.uuid4().hex[:12]}")
+
+    async def _focus_existing_workspace(self, provider: str, page: Any) -> Any:
+        now = datetime.now().isoformat()
+        self._workspace_id(provider)
+        self.workspace_reused[provider] = True
+        self.workspace_already_open[provider] = True
+        self.new_context_created[provider] = False
+        self.same_window_focused[provider] = True
+        self.last_focused_at[provider] = now
+        self.last_activity_at[provider] = now
+        try:
+            await page.bring_to_front()
+        except Exception:
+            pass
+        return page
 
     @staticmethod
     def _pid_alive(pid: int | None) -> bool:
@@ -239,18 +272,11 @@ class ExternalAIWorkspaceManager:
             raise RuntimeError("WORKSPACE_ACCESS_REQUIRES_BACKEND_API")
         existing = await self.reuse_existing_page(provider)
         if existing is not None:
-            self.workspace_reused[provider] = True
-            self.last_activity_at[provider] = datetime.now().isoformat()
-            try:
-                await existing.bring_to_front()
-            except Exception:
-                pass
-            return existing
+            return await self._focus_existing_workspace(provider, existing)
         async with self._lifecycle_lock(provider):
             existing = await self.reuse_existing_page(provider)
             if existing is not None:
-                self.workspace_reused[provider] = True
-                return existing
+                return await self._focus_existing_workspace(provider, existing)
             self.opening_providers.add(provider)
             self.last_statuses[provider] = self._status(
                 provider, ProviderState.OPENING
@@ -274,7 +300,11 @@ class ExternalAIWorkspaceManager:
                 raise
             try:
                 self.pages[provider] = page
+                self._workspace_id(provider)
+                self.workspace_already_open[provider] = False
                 self.workspace_reused[provider] = False
+                self.new_context_created[provider] = True
+                self.same_window_focused[provider] = False
                 self.opened_at.setdefault(provider, datetime.now().isoformat())
                 self.last_activity_at[provider] = datetime.now().isoformat()
                 url = URLS.get(provider)
@@ -287,6 +317,7 @@ class ExternalAIWorkspaceManager:
                         raise
                 try:
                     await page.bring_to_front()
+                    self.last_focused_at[provider] = datetime.now().isoformat()
                 except Exception:
                     pass
                 return page
@@ -297,8 +328,7 @@ class ExternalAIWorkspaceManager:
         provider = normalize_provider(provider)
         page = await self.reuse_existing_page(provider)
         if page is not None:
-            self.workspace_reused[provider] = True
-            self.last_activity_at[provider] = datetime.now().isoformat()
+            await self._focus_existing_workspace(provider, page)
             status = await self.get_workspace_status(provider)
             if status.state == ProviderState.STALE_CONVERSATION:
                 await self.recover_workspace(provider, "stale_conversation")
@@ -354,6 +384,11 @@ class ExternalAIWorkspaceManager:
                 self.last_errors[provider] = str(exc)
             self._release_owner(provider)
             self.active_request_ids.pop(provider, None)
+            self.workspace_already_open[provider] = False
+            self.workspace_reused[provider] = False
+            self.new_context_created[provider] = False
+            self.same_window_focused[provider] = False
+            self.workspace_ids.pop(provider, None)
         return await self.get_workspace_status(provider)
 
     def record_exchange(
@@ -462,8 +497,13 @@ class ExternalAIWorkspaceManager:
             app_instance_id=owner.get("app_instance_id", ""),
             last_activity_at=self.last_activity_at.get(provider, ""),
             active_request_id=self.active_request_ids.get(provider, ""),
+            workspace_id=self.workspace_ids.get(provider, ""),
+            workspace_already_open=self.workspace_already_open.get(provider, False),
             workspace_reused=self.workspace_reused.get(provider, False),
+            new_context_created=self.new_context_created.get(provider, False),
             second_context_created=False,
+            same_window_focused=self.same_window_focused.get(provider, False),
+            last_focused_at=self.last_focused_at.get(provider, ""),
             request_id=self.open_request_ids.get(provider, ""),
             browser_started=bool(launch.get("browser_started")),
             page_created=bool(launch.get("page_created")),

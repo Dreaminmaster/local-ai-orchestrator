@@ -60,6 +60,14 @@ Next improvement:
 
 - Add OS-level window positioning/focus hints per provider for a more docked feel.
 
+## Workspace Reuse Semantics Update - 2026-06-21
+
+- Repeated open now separates `request_id` from stable `workspace_id`.
+- Existing workspaces return `workspace_already_open=true`, `workspace_reused=true`, `same_window_focused=true`, `new_context_created=false`, and `second_context_created=false`.
+- Provider Console shows workspace id, opened/focused timestamps, reuse state, and context creation state.
+- Claude and Kimi repeated-open behavior is covered by offline unit tests.
+- No live provider prompt was sent for this update.
+
 ## Packaged App Rebuild Verification - 2026-06-20
 
 The Provider Workspace Console has been rebuilt into the arm64 unsigned DMG:

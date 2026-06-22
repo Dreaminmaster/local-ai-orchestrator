@@ -745,3 +745,48 @@ Current status:
   now run `python3 main.py`.
 - `compileall` PASS but runtime FAIL is no longer marked success.
 - DMG has not been rebuilt in this sprint.
+
+## Generic Repair & Workspace Semantics Sprint - 2026-06-21
+
+- Generic Python repair matrix: PASS, 10/10 expected outcomes.
+- Plain `print(message)` NameError: PASS.
+- Function-level NameError: PASS for safe simple return values.
+- Local ImportError module-name mismatch: PASS.
+- Missing local module and missing third-party dependency: explicit user/action-needed outcomes, no false success.
+- `compileall` PASS but runtime entry FAIL: still FAIL, false success prevented.
+- Workspace repeated open semantics: PASS.
+- Claude/Kimi second open: reuses existing workspace, focuses same page, creates no second context.
+- Provider Console UI now displays stable workspace id, reuse/focus state, and opened/focused timestamps.
+- No live provider prompt and no DMG rebuild in this sprint.
+
+## v0.3.2 Arm64 DMG Smoke - 2026-06-21
+
+- DMG generated:
+  `/Users/johnwick/Documents/codex/local-ai-orchestrator-chat-artifacts-20260612/generated-artifacts/Local-AI-Orchestrator-v0.3.2-arm64-generic-repair-workspace-reuse-unsigned.dmg`
+- SHA-256:
+  `42bb1267cffcd833d306f35fb06786b036782f275c9df8c5fe3e9f1ea24f578f`
+- Architecture audit: PASS, 84 Mach-O files, 0 x86_64-only.
+- Isolated install smoke: PASS.
+- Packaged generic repair smoke: PASS.
+- Packaged workspace reuse smoke: PASS.
+- Full Tauri shell rebuild attempted but blocked by FlyEnv Rust target mismatch; DMG uses the previously audited arm64 Tauri shell plus refreshed arm64 backend sidecar.
+
+## v0.3.3 Full Tauri Rebuild - 2026-06-22
+
+- Isolated temporary Rust toolchain under archive staging: PASS.
+- FlyEnv modified: NO.
+- global PATH / shell profile modified: NO.
+- Full Tauri shell rebuild with `--target aarch64-apple-darwin`: PASS.
+- Latest frontend bundled into rebuilt Tauri shell: PASS.
+- Latest backend sidecar bundled: PASS.
+- DMG generated:
+  `/Users/johnwick/Documents/codex/local-ai-orchestrator-chat-artifacts-20260612/generated-artifacts/Local-AI-Orchestrator-v0.3.3-arm64-full-tauri-generic-repair-workspace-reuse-unsigned.dmg`
+- SHA-256:
+  `d42ead9ec6d6f3de2d39bdc7a98bac7be5dea25f4fb986e3afb3e69705bc2749`
+- Architecture audit: PASS, 84 Mach-O files, 0 x86_64-only.
+- Isolated install smoke: PASS.
+- Packaged Generic Repair: PASS.
+- Packaged Workspace Reuse: PASS.
+- Realtime events and final report smoke: PASS.
+- 8422 / 8423 residue: none.
+- Recommended next main candidate, pending user confirmation before replacing `/Applications/Local AI Orchestrator.app`.

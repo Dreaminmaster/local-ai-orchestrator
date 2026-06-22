@@ -139,3 +139,36 @@ runtime-entry verification fixes are now packaged in a new arm64 unsigned DMG:
 - Port 8422 and 8423 residue: none
 
 This provider-console DMG is now the recommended main self-use artifact.
+## v0.3.2 Generic Repair & Workspace Reuse Build - 2026-06-21
+
+- Delivery artifact generated:
+  `/Users/johnwick/Documents/codex/local-ai-orchestrator-chat-artifacts-20260612/generated-artifacts/Local-AI-Orchestrator-v0.3.2-arm64-generic-repair-workspace-reuse-unsigned.dmg`
+- SHA-256:
+  `42bb1267cffcd833d306f35fb06786b036782f275c9df8c5fe3e9f1ea24f578f`
+- Architecture audit: PASS, 84 Mach-O files, 0 x86_64-only.
+- Packaged generic repair API smoke: PASS.
+- Packaged workspace reuse API smoke: PASS.
+- Product core smoke: PASS.
+- Note: this DMG reuses the previously audited arm64 Tauri shell and replaces the bundled arm64 backend sidecar. Full Tauri shell rebuild is blocked by FlyEnv Rust target mismatch.
+
+## v0.3.3 Full Tauri Rebuild - 2026-06-22
+
+Status: PASS
+
+The Rust target blocker was resolved through an isolated temporary Rust toolchain under the project archive staging directory. FlyEnv, global PATH, shell profiles, `/Users/johnwick/.cargo`, and `/Users/johnwick/.rustup` were not modified.
+
+New artifact:
+
+`/Users/johnwick/Documents/codex/local-ai-orchestrator-chat-artifacts-20260612/generated-artifacts/Local-AI-Orchestrator-v0.3.3-arm64-full-tauri-generic-repair-workspace-reuse-unsigned.dmg`
+
+- SHA-256: `d42ead9ec6d6f3de2d39bdc7a98bac7be5dea25f4fb986e3afb3e69705bc2749`
+- Full Tauri shell rebuild: PASS
+- Latest frontend bundled: PASS
+- Latest backend sidecar bundled: PASS
+- Architecture audit: PASS, `84` Mach-O files, `0` x86_64-only
+- Packaged Generic Repair: PASS
+- Packaged Workspace Reuse: PASS
+- Realtime/final report smoke: PASS
+- Sidecar shutdown and 8422/8423 cleanup: PASS
+
+This supersedes v0.3.2 as the recommended candidate because it is a true full Tauri rebuild.
